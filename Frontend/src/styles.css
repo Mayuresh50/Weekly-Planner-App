@@ -1,0 +1,166 @@
+@import "@angular/material/prebuilt-themes/azure-blue.css";
+
+/* ===============================
+   DESIGN TOKENS
+================================= */
+
+:root {
+  /* BRAND COLORS */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #dbeafe;
+
+  /* STATUS COLORS */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #0ea5e9;
+
+  /* SURFACES */
+  --surface-ground: #f8fafc;
+  --surface-section: #ffffff;
+  --surface-card: #ffffff;
+  --surface-border: #e2e8f0;
+
+  /* TEXT */
+  --text-color: #0f172a;
+  --text-secondary: #64748b;
+
+  /* SIDEBAR */
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #ffffff;
+
+  /* HEADER */
+  --header-bg: rgba(255, 255, 255, 0.75);
+
+  /* SHADOW SYSTEM */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 35px rgba(0, 0, 0, 0.08);
+
+  /* RADIUS SYSTEM */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+
+  /* TRANSITION */
+  --transition-fast: 0.2s ease;
+  --transition-smooth: 0.35s ease;
+}
+
+/* ===============================
+   DARK MODE
+================================= */
+
+body.dark-theme {
+  --surface-ground: #0f172a;
+  --surface-section: #1e293b;
+  --surface-card: #1e293b;
+  --surface-border: #334155;
+
+  --text-color: #f1f5f9;
+  --text-secondary: #94a3b8;
+
+  --sidebar-bg: #020617;
+  --header-bg: rgba(30, 41, 59, 0.8);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ===============================
+   GLOBAL BASE
+================================= */
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: var(--surface-ground);
+  color: var(--text-color);
+  transition: background var(--transition-smooth),
+              color var(--transition-smooth);
+}
+
+.mat-typography {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ===============================
+   SCROLLBAR POLISH
+================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* ===============================
+   CARD BASE STYLE
+================================= */
+
+.card-surface {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast);
+}
+
+.card-surface:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ===============================
+   BUTTON POLISH
+================================= */
+
+button {
+  transition: all var(--transition-fast);
+}
+
+/* ===============================
+   SNACKBAR STYLES
+================================= */
+
+.success-snackbar {
+  background: var(--success) !important;
+  color: white !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.error-snackbar {
+  background: var(--danger) !important;
+  color: white !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.info-snackbar {
+  background: var(--info) !important;
+  color: white !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* ===============================
+   RESPONSIVE UTILITIES
+================================= */
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
