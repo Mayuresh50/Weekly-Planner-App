@@ -33,7 +33,7 @@ export class AssignmentService {
     const backlogItem = await this.backlogRepository.findById(backlogItemId);
     if (!backlogItem) throw new AppError('Backlog item not found', 404);
 
-    const categoryAllocation = plan.allocations.find(a => a.category === backlogItem.category);
+    const categoryAllocation = plan.allocations.find((a: any) => a.category === backlogItem.category);
     if (!categoryAllocation) throw new AppError('Category allocation not found in plan', 400);
 
     const categoryAssignments = await this.assignmentRepository.findByPlanAndCategory(weeklyPlanId, backlogItem.category);

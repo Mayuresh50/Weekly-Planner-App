@@ -2,7 +2,7 @@ import { WeeklyPlan, PlanAllocation, Category } from '@prisma/client';
 import prisma from '../config/prisma';
 
 export class PlanningRepository {
-  async findCurrentPlan(): Promise<WeeklyPlan | null> {
+  async findCurrentPlan(): Promise<any | null> {
     const now = new Date();
     return prisma.weeklyPlan.findFirst({
       where: {
@@ -13,7 +13,7 @@ export class PlanningRepository {
     });
   }
 
-  async createPlan(data: any, allocations: any[]): Promise<WeeklyPlan> {
+  async createPlan(data: any, allocations: any[]): Promise<any> {
     return prisma.weeklyPlan.create({
       data: {
         ...data,
@@ -25,7 +25,7 @@ export class PlanningRepository {
     });
   }
 
-  async updatePlan(id: string, data: any): Promise<WeeklyPlan> {
+  async updatePlan(id: string, data: any): Promise<any> {
     return prisma.weeklyPlan.update({
       where: { id },
       data,
@@ -33,7 +33,7 @@ export class PlanningRepository {
     });
   }
 
-  async findById(id: string): Promise<WeeklyPlan | null> {
+  async findById(id: string): Promise<any | null> {
     return prisma.weeklyPlan.findUnique({
       where: { id },
       include: { allocations: true },

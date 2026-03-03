@@ -1,64 +1,102 @@
-import { AuthService } from '../src/services/auth.service';
-import { UserRepository } from '../src/repositories/user.repository';
-import jwt from 'jsonwebtoken';
+import { AuthService } from '../services/auth.service';
+import { UserRepository } from '../repositories/user.repository';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { AppError } from '../middleware/error.middleware';
 
-jest.mock('../src/repositories/user.repository');
-jest.mock('jsonwebtoken');
+jest.mock('../repositories/user.repository');
 jest.mock('bcryptjs');
+jest.mock('jsonwebtoken');
 
 describe('AuthService', () => {
   let authService: AuthService;
   let userRepository: jest.Mocked<UserRepository>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.JWT_SECRET = 'test-secret';
     userRepository = new UserRepository() as jest.Mocked<UserRepository>;
     authService = new AuthService();
     (authService as any).userRepository = userRepository;
   });
 
   describe('signup', () => {
-    it('should create a new user and return a token', async () => {
-      const userData = { email: 'test@example.com', password: 'password123', name: 'Test User', role: 'TEAM_MEMBER' as any };
-      const createdUser = { id: '1', ...userData, password: 'hashedpassword' };
-      
+    const signupData = {
+      email: 'test@example.com',
+      password: 'password123',
+      name: 'Test User',
+      role: 'TEAM_MEMBER'
+    };
+
+    it('should create a new user and return user and token', async () => {
       userRepository.findByEmail.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+      const createdUser = { id: 'user-123', ...signupData, password: 'hashedPassword' };
       userRepository.create.mockResolvedValue(createdUser as any);
       (jwt.sign as jest.Mock).mockReturnValue('fake-token');
 
-      const result = await authService.signup(userData);
+      const result = await authService.signup(signupData);
 
-      expect(result.token).toBe('fake-token');
-      expect(result.user.email).toBe(userData.email);
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(signupData.email);
+      expect(bcrypt.hash).toHaveBeenCalledWith(signupData.password, 12);
+      expect(userRepository.create).toHaveBeenCalled();
+      expect(result).toEqual({ user: createdUser, token: 'fake-token' });
     });
 
-    it('should throw error if user already exists', async () => {
-      userRepository.findByEmail.mockResolvedValue({ id: '1' } as any);
-      
-      await expect(authService.signup({ email: 'test@example.com' } as any))
-        .rejects.toThrow('User with this email already exists');
+    it('should throw AppError if email is already in use', async () => {
+      userRepository.findByEmail.mockResolvedValue({ id: 'existing' } as any);
+
+      await expect(authService.signup(signupData)).rejects.toThrow(
+        new AppError('Email already in use', 400)
+      );
     });
   });
 
   describe('login', () => {
-    it('should return token for valid credentials', async () => {
-      const user = { id: '1', email: 'test@example.com', password: 'hashedpassword', role: 'TEAM_MEMBER' };
-      
+    const loginData = {
+      email: 'test@example.com',
+      password: 'password123'
+    };
+
+    it('should return user and token for valid credentials', async () => {
+      const user = { id: 'user-123', email: loginData.email, password: 'hashedPassword', role: 'TEAM_MEMBER' };
       userRepository.findByEmail.mockResolvedValue(user as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (jwt.sign as jest.Mock).mockReturnValue('fake-token');
 
-      const result = await authService.login('test@example.com', 'password123');
+      const result = await authService.login(loginData);
 
-      expect(result.token).toBe('fake-token');
-      expect(result.user.id).toBe('1');
+      expect(userRepository.findByEmail).toHaveBeenCalledWith(loginData.email);
+      expect(bcrypt.compare).toHaveBeenCalledWith(loginData.password, 'hashedPassword');
+      expect(result).toEqual({ user, token: 'fake-token' });
     });
 
-    it('should throw error for invalid credentials', async () => {
+    it('should throw 401 for non-existent user', async () => {
       userRepository.findByEmail.mockResolvedValue(null);
-      
-      await expect(authService.login('test@example.com', 'password123'))
-        .rejects.toThrow('Invalid email or password');
+
+      await expect(authService.login(loginData)).rejects.toThrow(
+        new AppError('Incorrect email or password', 401)
+      );
+    });
+
+    it('should throw 401 for incorrect password', async () => {
+      userRepository.findByEmail.mockResolvedValue({ password: 'hashed' } as any);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.login(loginData)).rejects.toThrow(
+        new AppError('Incorrect email or password', 401)
+      );
+    });
+  });
+
+  describe('generateToken', () => {
+    it('should throw error if JWT_SECRET is not defined', async () => {
+      delete process.env.JWT_SECRET;
+      // Need a public way or trigger to call private method for 100% coverage
+      // Usually signup/login covers this, but testing the branch directly via any cast
+      expect(() => (authService as any).generateToken('id')).toThrow(
+        'JWT_SECRET is not defined in environment variables'
+      );
     });
   });
 });

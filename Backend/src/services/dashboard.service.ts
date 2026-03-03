@@ -55,7 +55,7 @@ export class DashboardService {
       },
       categoryUtilization,
       memberProgress: Object.values(memberProgress),
-      taskLevelProgress: filteredAssignments.map(a => ({
+      taskLevelProgress: filteredAssignments.map((a: any) => ({
         id: a.id,
         title: a.backlogItem.title,
         member: a.user.name,
