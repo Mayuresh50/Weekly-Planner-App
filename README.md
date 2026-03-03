@@ -49,7 +49,3 @@ npm start
 To generate coverage reports:
 1. Backend: Use `dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover`.
 2. Frontend: Use `ng test --code-coverage`.
-
-## Credentials (Sample Seed Data)
-- **Lead**: `lead` / `lead@123`
-- **Member**: `member` / `member@123`
