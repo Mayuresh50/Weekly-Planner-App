@@ -32,11 +32,11 @@ jobs:
           # Angular project folder
           app_location: "Frontend"
 
-          # no API here
+          # No Azure Functions API
           api_location: ""
 
-          # tell Azure exactly where index.html exists
-          app_artifact_location: "dist/Frontend"
+          # Leave empty so Azure auto-detects dist folder
+          output_location: ""
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
