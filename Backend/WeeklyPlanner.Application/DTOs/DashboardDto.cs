@@ -17,7 +17,6 @@ public class TaskAssignmentDto
 
 public class CreateAssignmentDto
 {
-    public Guid WeeklyPlanId { get; set; }
     public Guid BacklogItemId { get; set; }
     public Guid UserId { get; set; }
     public decimal AssignedHours { get; set; }

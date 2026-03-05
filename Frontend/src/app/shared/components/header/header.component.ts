@@ -14,32 +14,46 @@ import { ThemeService } from '../../../core/services/theme.service';
   imports: [CommonModule, MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatDividerModule],
   template: `
     <mat-toolbar class="header-toolbar">
-      <button mat-icon-button class="hide-desktop">
-        <mat-icon>menu</mat-icon>
-      </button>
+      <div class="breadcrumb-container">
+        <span class="root-crumb">Weekly Planning</span>
+        <mat-icon class="crumb-separator">chevron_right</mat-icon>
+        <span class="active-crumb">Dashboard</span>
+      </div>
       
       <span class="spacer"></span>
       
       <div class="actions">
-        <button mat-icon-button (click)="themeService.toggleTheme()" aria-label="Toggle theme">
+        <button mat-icon-button (click)="themeService.toggleTheme()" aria-label="Toggle theme" class="action-btn">
           <mat-icon>{{ themeService.isDarkMode() ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
         
-        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
-          <mat-icon>account_circle</mat-icon>
-          <span class="username">{{ authService.currentUser()?.name }}</span>
-          <mat-icon>expand_more</mat-icon>
-        </button>
+        <div class="user-profile-trigger" [matMenuTriggerFor]="userMenu">
+          <div class="user-avatar">
+            {{ getInitials(authService.currentUser()?.name) }}
+          </div>
+          <div class="user-info hide-mobile">
+            <div class="username">{{ authService.currentUser()?.name }}</div>
+            <div class="userrole">{{ authService.currentUser()?.role }}</div>
+          </div>
+          <mat-icon class="expand-icon">expand_more</mat-icon>
+        </div>
         
-        <mat-menu #userMenu="matMenu" xPosition="before">
+        <mat-menu #userMenu="matMenu" xPosition="before" class="enterprise-menu">
           <div class="menu-header">
-            <div class="name">{{ authService.currentUser()?.name }}</div>
-            <div class="role">{{ authService.currentUser()?.role }}</div>
+            <div class="avatar-large">{{ getInitials(authService.currentUser()?.name) }}</div>
+            <div class="header-details">
+              <div class="name">{{ authService.currentUser()?.name }}</div>
+              <div class="email">{{ authService.currentUser()?.email }}</div>
+            </div>
           </div>
           <mat-divider></mat-divider>
-          <button mat-menu-item (click)="authService.logout()">
+          <button mat-menu-item>
+            <mat-icon>person</mat-icon>
+            <span>Profile Settings</span>
+          </button>
+          <button mat-menu-item (click)="authService.logout()" class="logout-item">
             <mat-icon>logout</mat-icon>
-            <span>Logout</span>
+            <span>Sign Out</span>
           </button>
         </mat-menu>
       </div>
@@ -47,34 +61,153 @@ import { ThemeService } from '../../../core/services/theme.service';
   `,
   styles: [`
     .header-toolbar {
-      background: var(--header-bg);
-      border-bottom: 1px solid var(--surface-border);
-      color: var(--text-color);
-      height: 64px;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      color: #1e293b;
+      height: 72px;
+      padding: 0 24px;
       display: flex;
       align-items: center;
-      padding: 0 16px;
     }
-    .spacer { flex: 1 1 auto; }
-    .actions { display: flex; align-items: center; gap: 8px; }
-    .user-btn {
+
+    .breadcrumb-container {
       display: flex;
       align-items: center;
-      gap: 8px;
-      text-transform: none;
+      font-size: 0.9rem;
       font-weight: 500;
     }
-    .username { margin: 0 4px; }
-    .menu-header { padding: 16px; min-width: 200px; }
-    .menu-header .name { font-weight: 600; color: var(--text-color); }
-    .menu-header .role { font-size: 0.75rem; color: var(--text-secondary); }
-    
-    @media (min-width: 769px) {
-      .hide-desktop { display: none; }
+
+    .root-crumb {
+      color: #64748b;
+    }
+
+    .crumb-separator {
+      margin: 0 8px;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+
+    .active-crumb {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .spacer { flex: 1 1 auto; }
+
+    .actions { display: flex; align-items: center; gap: 16px; }
+
+    .action-btn {
+      color: #64748b;
+    }
+
+    .user-profile-trigger {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .user-profile-trigger:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .username {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .userrole {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: capitalize;
+    }
+
+    .expand-icon {
+      font-size: 18px;
+      color: #94a3b8;
+    }
+
+    .enterprise-menu {
+      border-radius: 16px !important;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1) !important;
+    }
+
+    .menu-header {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #f8fafc;
+    }
+
+    .avatar-large {
+      width: 48px;
+      height: 48px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .header-details .name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .header-details .email {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .logout-item {
+      color: #dc2626 !important;
+    }
+
+    @media (max-width: 640px) {
+      .hide-mobile { display: none; }
     }
   `]
 })
 export class HeaderComponent {
   authService = inject(AuthService);
   themeService = inject(ThemeService);
+
+  getInitials(name: string | undefined): string {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  }
 }

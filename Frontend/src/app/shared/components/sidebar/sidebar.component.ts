@@ -1,8 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -13,196 +14,236 @@ import { AuthService } from '../../../core/services/auth.service';
     RouterLink,
     RouterLinkActive,
     MatListModule,
-    MatIconModule
+    MatIconModule,
+    MatTooltipModule
   ],
   template: `
-    <div class="sidebar-container">
+    <div class="sidebar-container" [class.collapsed]="isCollapsed()">
 
       <!-- LOGO -->
       <div class="logo-section">
         <div class="logo-badge">
           <mat-icon>event_note</mat-icon>
         </div>
-        <span class="logo-text">WeeklyPlanner</span>
+        <span class="logo-text" *ngIf="!isCollapsed()">WeeklyPlanner</span>
       </div>
 
       <!-- NAVIGATION -->
       <mat-nav-list class="nav-list">
 
-        <div class="nav-label">Main</div>
+        <div class="nav-label" *ngIf="!isCollapsed()">Main</div>
 
         <a mat-list-item
            routerLink="/dashboard"
            routerLinkActive="active-link"
-           [routerLinkActiveOptions]="{exact: true}">
+           [routerLinkActiveOptions]="{exact: true}"
+           [matTooltip]="isCollapsed() ? 'Dashboard' : ''"
+           matTooltipPosition="right">
           <mat-icon matListItemIcon>dashboard</mat-icon>
-          <span matListItemTitle>Dashboard</span>
+          <span matListItemTitle *ngIf="!isCollapsed()">Dashboard</span>
+        </a>
+
+        <a mat-list-item
+           routerLink="/planning"
+           routerLinkActive="active-link"
+           *ngIf="authService.isTeamLead()"
+           [matTooltip]="isCollapsed() ? 'Weekly Planning' : ''"
+           matTooltipPosition="right">
+          <mat-icon matListItemIcon>event_note</mat-icon>
+          <span matListItemTitle *ngIf="!isCollapsed()">Weekly Plan</span>
         </a>
 
         <a mat-list-item
            routerLink="/backlog"
-           routerLinkActive="active-link">
-          <mat-icon matListItemIcon>format_list_bulleted</mat-icon>
-          <span matListItemTitle>Backlog</span>
-        </a>
-
-        <div class="nav-label" *ngIf="authService.isTeamLead()">Planning</div>
-
-        <a mat-list-item
-           *ngIf="authService.isTeamLead()"
-           routerLink="/planning"
-           routerLinkActive="active-link">
-          <mat-icon matListItemIcon>assignment</mat-icon>
-          <span matListItemTitle>Team Planning</span>
+           routerLinkActive="active-link"
+           [matTooltip]="isCollapsed() ? 'Backlog' : ''"
+           matTooltipPosition="right">
+          <mat-icon matListItemIcon>inventory_2</mat-icon>
+          <span matListItemTitle *ngIf="!isCollapsed()">Product Backlog</span>
         </a>
 
         <a mat-list-item
            routerLink="/assignment"
-           routerLinkActive="active-link">
-          <mat-icon matListItemIcon>person_add</mat-icon>
-          <span matListItemTitle>My Assignments</span>
+           routerLinkActive="active-link"
+           [matTooltip]="isCollapsed() ? 'My Assignments' : ''"
+           matTooltipPosition="right">
+          <mat-icon matListItemIcon>assignment_ind</mat-icon>
+          <span matListItemTitle *ngIf="!isCollapsed()">Assignments</span>
         </a>
 
+        <div class="nav-label" *ngIf="authService.isTeamLead() && !isCollapsed()">Admin</div>
+
+        <a mat-list-item
+           routerLink="/team"
+           routerLinkActive="active-link"
+           *ngIf="authService.isTeamLead()"
+           [matTooltip]="isCollapsed() ? 'Team Management' : ''"
+           matTooltipPosition="right">
+          <mat-icon matListItemIcon>group_add</mat-icon>
+          <span matListItemTitle *ngIf="!isCollapsed()">Team Members</span>
+        </a>
+
+        <a mat-list-item
+           routerLink="/reports"
+           routerLinkActive="active-link"
+           [matTooltip]="isCollapsed() ? 'Reports' : ''"
+           matTooltipPosition="right">
+          <mat-icon matListItemIcon>analytics</mat-icon>
+          <span matListItemTitle *ngIf="!isCollapsed()">Reports</span>
+        </a>
       </mat-nav-list>
 
-      <!-- FOOTER -->
-      <div class="footer-section">
-        <button mat-list-item class="logout-btn" (click)="logout()">
-          <mat-icon matListItemIcon>logout</mat-icon>
-          <span matListItemTitle>Logout</span>
+      <!-- COLLAPSE TOGGLE -->
+      <div class="collapse-section">
+        <button mat-icon-button (click)="toggleSidebar()" class="collapse-btn">
+          <mat-icon>{{ isCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
       </div>
 
     </div>
   `,
   styles: [`
+    .sidebar-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 24px 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 270px;
+    }
 
-  .sidebar-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: linear-gradient(180deg, #0f172a, #0b1220);
-    color: #ffffff;
-    padding: 16px 12px;
-  }
+    .sidebar-container.collapsed {
+      width: 80px;
+      padding: 24px 8px;
+    }
 
-  /* LOGO */
-  .logo-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    margin-bottom: 10px;
-  }
+    /* LOGO */
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 12px;
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
 
-  .logo-badge {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
-  }
+    .logo-badge {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      min-width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+    }
 
-  .logo-badge mat-icon {
-    color: #ffffff !important;
-  }
+    .logo-badge mat-icon {
+      color: #ffffff !important;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
 
-  .logo-text {
-    font-size: 1.2rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: #ffffff;
-  }
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      white-space: nowrap;
+    }
 
-  /* LABEL */
-  .nav-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: rgba(255,255,255,0.6);
-    margin: 16px 12px 6px;
-  }
+    /* LABEL */
+    .nav-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin: 24px 12px 12px;
+      white-space: nowrap;
+    }
 
-  /* NAV LIST */
-  .nav-list {
-    flex: 1;
-  }
+    /* NAV LIST */
+    .nav-list {
+      flex: 1;
+      overflow-x: hidden;
+    }
 
-  /* FORCE MATERIAL TEXT COLOR */
-  a.mat-mdc-list-item,
-  button.mat-mdc-list-item {
-    border-radius: 14px;
-    margin: 4px 8px;
-    transition: all 0.25s ease;
-    color: #f1f5f9 !important;
-  }
+    a.mat-mdc-list-item {
+      border-radius: 12px;
+      margin: 4px 0;
+      height: 48px !important;
+      transition: all 0.2s ease;
+      color: #cbd5e1 !important; /* Semi-transparent white for inactive */
+    }
 
-  /* Primary Text Override */
-  a.mat-mdc-list-item .mdc-list-item__primary-text,
-  button.mat-mdc-list-item .mdc-list-item__primary-text {
-    color: #f1f5f9 !important;
-    font-weight: 500;
-  }
+    a.mat-mdc-list-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff !important;
+    }
 
-  /* ICON */
-  a.mat-mdc-list-item mat-icon,
-  button.mat-mdc-list-item mat-icon {
-    color: rgba(255,255,255,0.75) !important;
-    transition: 0.25s ease;
-  }
+    .active-link {
+      background: #ffffff !important;
+      color: #0f172a !important; /* Dark text on white background */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-  /* HOVER */
-  a.mat-mdc-list-item:hover,
-  button.mat-mdc-list-item:hover {
-    background: rgba(255,255,255,0.08);
-    transform: translateX(4px);
-  }
+    .active-link mat-icon, 
+    .active-link [matListItemTitle] {
+      color: #0f172a !important;
+    }
 
-  a.mat-mdc-list-item:hover mat-icon,
-  button.mat-mdc-list-item:hover mat-icon {
-    color: #ffffff !important;
-  }
+    /* ICONS */
+    mat-icon[matListItemIcon] {
+      color: inherit !important;
+      margin-right: 16px !important;
+    }
 
-  /* ACTIVE */
-  .active-link {
-    background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
-  }
+    .collapsed mat-icon[matListItemIcon] {
+      margin-right: 0 !important;
+    }
 
-  .active-link .mdc-list-item__primary-text {
-    color: #ffffff !important;
-    font-weight: 600;
-  }
+    /* FOOTER / COLLAPSE */
+    .collapse-section {
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 20px;
+    }
 
-  .active-link mat-icon {
-    color: #ffffff !important;
-  }
+    .collapse-btn {
+      color: #64748b;
+    }
 
-  /* FOOTER */
-  .footer-section {
-    padding: 8px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
+    .collapse-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
 
-  .logout-btn {
-    border-radius: 14px;
-    margin: 6px 8px;
-    color: #f1f5f9 !important;
-    transition: all 0.25s ease;
-  }
+    a.mat-mdc-list-item .mdc-list-item__primary-text {
+      color: #cbd5e1 !important;
+    }
 
-  .logout-btn:hover {
-    background: rgba(239,68,68,0.15);
-    color: #ef4444 !important;
-  }
+    a.mat-mdc-list-item:hover .mdc-list-item__primary-text {
+      color: #ffffff !important;
+    }
 
-`]
+    .active-link .mdc-list-item__primary-text {
+      color: #0f172a !important;
+    }
+  `]
 })
 export class SidebarComponent {
   authService = inject(AuthService);
+  isCollapsed = signal(false);
+
+  toggleSidebar() {
+    this.isCollapsed.update(v => !v);
+  }
 
   logout() {
     this.authService.logout();

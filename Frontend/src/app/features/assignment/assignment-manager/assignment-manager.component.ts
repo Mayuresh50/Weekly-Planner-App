@@ -14,6 +14,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { DashboardSummary, TaskAssignment } from '../../../core/models/assignment';
 import { ItemPickerDialogComponent } from './item-picker-dialog.component';
+import { User, Role } from '../../../core/models/auth';
 import { BacklogItem } from '../../../core/models/backlog';
 
 @Component({
@@ -32,129 +33,261 @@ import { BacklogItem } from '../../../core/models/backlog';
   ],
   template: `
     <div class="assignment-page">
-      <header class="page-header">
-        <div class="header-main">
-          <h1>My Weekly Plan</h1>
-          <p class="subtitle" *ngIf="activePlanId()">Week of {{ startDate() | date:'mediumDate' }}</p>
+      <header class="dashboard-header">
+        <div class="title-group">
+          <h1>{{ isLead() ? 'Team Assignment Board' : 'My Weekly Plan' }}</h1>
+          <p class="subtitle" *ngIf="activePlanId()">
+            {{ isLead() ? 'Strategize and assign workload for the team' : 'Your personal assignment schedule' }}
+            (Week of {{ startDate() | date:'mediumDate' }})
+          </p>
         </div>
         <div class="header-actions">
-           <button mat-flat-button color="primary" (click)="openItemPicker()" [disabled]="isFrozen()">
-            <mat-icon>add</mat-icon>
-            <span>Assign Work Item</span>
+           <button mat-flat-button color="primary" class="action-btn" (click)="openItemPicker()" [disabled]="isFrozen()">
+            <mat-icon>add_task</mat-icon>
+            <span>{{ isLead() ? 'Assign Item to Member' : 'Self-Assign Item' }}</span>
           </button>
         </div>
       </header>
 
-      <div class="capacity-section">
-        <mat-card class="capacity-card">
+      <!-- CAPACITY TRACKER -->
+      <section class="capacity-overview">
+        <mat-card class="data-box capacity-card">
           <mat-card-content>
-            <div class="capacity-header">
-              <span class="label">Total Allocation</span>
-              <span class="value" [ngClass]="{'at-capacity': totalAllocated() === 30, 'over': totalAllocated() > 30}">
-                {{ totalAllocated() }} / 30 Hours
-              </span>
+            <div class="capacity-top">
+              <div class="capacity-label">
+                <span class="main-text">Weekly Bandwidth</span>
+                <span class="sub-text">Calculated based on 30h standard capacity</span>
+              </div>
+              <div class="capacity-stats" [class.warning]="totalAllocated() >= 25" [class.danger]="totalAllocated() > 30">
+                <span class="current">{{ totalAllocated() }}</span>
+                <span class="separator">/</span>
+                <span class="max">30h</span>
+              </div>
             </div>
-            <mat-progress-bar 
-              mode="determinate" 
-              [value]="(totalAllocated() / 30) * 100"
-              [color]="totalAllocated() > 30 ? 'warn' : 'primary'">
-            </mat-progress-bar>
-            <p class="capacity-msg" *ngIf="totalAllocated() < 30">You have {{ 30 - totalAllocated() }} hours remaining.</p>
-            <p class="capacity-msg success" *ngIf="totalAllocated() === 30">Capacity filled perfectly! ready to freeze.</p>
-            <p class="capacity-msg error" *ngIf="totalAllocated() > 30">Warning: You are over-allocated by {{ totalAllocated() - 30 }} hours.</p>
+            
+            <div class="progress-wrapper">
+              <div class="progress-bg">
+                <div class="progress-fill" [style.width.%]="(totalAllocated() / 30) * 100" 
+                     [class.filled]="totalAllocated() >= 30"
+                     [class.over]="totalAllocated() > 30">
+                </div>
+              </div>
+            </div>
+
+            <div class="capacity-footer">
+              <div class="status-indicator" *ngIf="totalAllocated() < 30">
+                <mat-icon>info</mat-icon>
+                <span>{{ 30 - totalAllocated() }} hours available for additional tasks</span>
+              </div>
+              <div class="status-indicator success" *ngIf="totalAllocated() === 30">
+                <mat-icon>check_circle</mat-icon>
+                <span>Perfect capacity utilization</span>
+              </div>
+              <div class="status-indicator danger" *ngIf="totalAllocated() > 30">
+                <mat-icon>warning</mat-icon>
+                <span>Over-allocated by {{ totalAllocated() - 30 }} hours</span>
+              </div>
+            </div>
           </mat-card-content>
         </mat-card>
-      </div>
+      </section>
 
-      <mat-card class="tasks-card">
-        <table mat-table [dataSource]="assignments()" class="tasks-table">
-          <ng-container matColumnDef="title">
-            <th mat-header-cell *matHeaderCellDef> Work Item </th>
-            <td mat-cell *matCellDef="let row"> {{row.backlogItemTitle}} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="hours">
-            <th mat-header-cell *matHeaderCellDef> Assigned Hours </th>
-            <td mat-cell *matCellDef="let row"> 
-              <div class="hours-cell">
-                <span>{{row.assignedHours}}h</span>
-              </div>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="progress">
-            <th mat-header-cell *matHeaderCellDef> Completion </th>
-            <td mat-cell *matCellDef="let row">
-              <div class="progress-cell">
-                <mat-slider min="0" max="100" step="10" discrete [disabled]="isFrozen()">
-                  <input matSliderThumb [(ngModel)]="row.progressPercentage" (change)="onProgressChange(row)">
-                </mat-slider>
-                <span class="pct">{{row.progressPercentage}}%</span>
-              </div>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef> Status </th>
-            <td mat-cell *matCellDef="let row">
-              <span class="status-badge" [ngClass]="row.status.toLowerCase()">{{row.status}}</span>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
+      <!-- ASSIGNMENTS TABLE -->
+      <mat-card class="data-box table-card">
+        <mat-card-header>
+          <mat-card-title>Assigned Responsibilities</mat-card-title>
+        </mat-card-header>
         
-        <div class="empty-tasks" *ngIf="assignments().length === 0">
-          <mat-icon>assignment_late</mat-icon>
-          <p>No tasks assigned for this week yet.</p>
-          <button mat-stroked-button color="primary" (click)="openItemPicker()" [disabled]="isFrozen()">Pick from Backlog</button>
+        <div class="table-container">
+          <table mat-table [dataSource]="assignments()" class="enterprise-table">
+            <ng-container matColumnDef="title">
+              <th mat-header-cell *matHeaderCellDef> Task Details </th>
+              <td mat-cell *matCellDef="let row"> 
+                <div class="task-info">
+                  <span class="task-title">{{row.backlogItemTitle}}</span>
+                  <span class="task-meta">{{ isLead() ? 'Assigned to ' + row.userName : 'Assigned to me' }}</span>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hours">
+              <th mat-header-cell *matHeaderCellDef> Allocation </th>
+              <td mat-cell *matCellDef="let row"> 
+                <span class="hour-capsule">{{row.assignedHours}}h</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="progress">
+              <th mat-header-cell *matHeaderCellDef> Work Progress </th>
+              <td mat-cell *matCellDef="let row">
+                <div class="progress-interact">
+                  <mat-slider min="0" max="100" step="10" discrete [disabled]="isFrozen()" class="compact-slider">
+                    <input matSliderThumb [(ngModel)]="row.progressPercentage" (change)="onProgressChange(row)">
+                  </mat-slider>
+                  <span class="pct-val">{{row.progressPercentage}}%</span>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef> Workflow </th>
+              <td mat-cell *matCellDef="let row">
+                <span class="workflow-badge" [attr.data-status]="row.status">
+                  {{row.status}}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="item-interactive-row"></tr>
+          </table>
+          
+          <div class="empty-state-view" *ngIf="assignments().length === 0">
+            <div class="empty-icon-wrap">
+              <mat-icon>event_busy</mat-icon>
+            </div>
+            <h3>No assignments found</h3>
+            <p>{{ isLead() ? 'Start assigning backlog items to team members to build the weekly schedule.' : 'You have no tasks assigned to you for this week yet.' }}</p>
+            <button mat-flat-button color="primary" class="action-btn" (click)="openItemPicker()" [disabled]="isFrozen()">
+               {{ isLead() ? 'Assign First Item' : 'Browse Backlog' }}
+            </button>
+          </div>
         </div>
       </mat-card>
     </div>
   `,
   styles: [`
-    .assignment-page { padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .header-main h1 { margin: 0; font-weight: 700; font-size: 1.75rem; }
-    .subtitle { margin: 4px 0 0; color: var(--text-secondary); font-size: 0.9rem; }
+    .assignment-page { animation: fadeIn 0.4s ease-out; }
     
-    .capacity-section { margin-bottom: 32px; }
-    .capacity-card { border: none; border-radius: 12px; }
-    .capacity-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-    .capacity-header .label { font-weight: 600; color: var(--text-color); }
-    .capacity-header .value { font-weight: 800; font-size: 1.25rem; }
-    .capacity-header .value.at-capacity { color: #48bb78; }
-    .capacity-header .value.over { color: #f56565; }
-    
-    mat-progress-bar { height: 10px; border-radius: 5px; }
-    .capacity-msg { margin: 8px 0 0; font-size: 0.8125rem; }
-    .capacity-msg.success { color: #48bb78; font-weight: 600; }
-    .capacity-msg.error { color: #f56565; font-weight: 600; }
-    
-    .tasks-card { border: none; border-radius: 12px; overflow: hidden; }
-    .tasks-table { width: 100%; }
-    .hours-cell { font-weight: 600; }
-    .progress-cell { display: flex; align-items: center; gap: 12px; width: 220px; }
-    .progress-cell mat-slider { flex: 1; }
-    .pct { width: 40px; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-secondary); }
-    
-    .status-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.7rem;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 32px;
+    }
+
+    .dashboard-header h1 { 
+      margin: 0; 
+      font-size: 1.85rem; 
+      font-weight: 800; 
+      color: #0f172a; 
+      letter-spacing: -0.025em; 
+    }
+
+    .subtitle { margin: 4px 0 0; color: #64748b; font-size: 0.95rem; }
+    .header-actions { display: flex; gap: 12px; }
+    .action-btn { border-radius: 12px; font-weight: 600; height: 44px; padding: 0 20px; }
+
+    /* DATA BOX & CAPACITY */
+    .data-box { 
+      border: none; 
+      border-radius: 24px; 
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.04);
+      background: white;
+    }
+
+    .capacity-overview { margin-bottom: 32px; }
+    .capacity-card { padding: 32px; }
+
+    .capacity-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+
+    .capacity-label .main-text { display: block; font-size: 1.15rem; font-weight: 700; color: #0f172a; }
+    .capacity-label .sub-text { display: block; font-size: 0.85rem; color: #64748b; margin-top: 2px; }
+
+    .capacity-stats { font-weight: 800; display: flex; align-items: baseline; gap: 2px; }
+    .capacity-stats .current { font-size: 2.25rem; color: #3b82f6; }
+    .capacity-stats .separator { font-size: 1.25rem; color: #cbd5e1; margin: 0 4px; }
+    .capacity-stats .max { font-size: 1.25rem; color: #64748b; }
+
+    .capacity-stats.warning .current { color: #f59e0b; }
+    .capacity-stats.danger .current { color: #ef4444; }
+
+    .progress-wrapper { width: 100%; margin-bottom: 20px; }
+    .progress-bg { height: 12px; background: #f1f5f9; border-radius: 6px; overflow: hidden; }
+    .progress-fill { 
+      height: 100%; 
+      background: #3b82f6; 
+      border-radius: 6px; 
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .progress-fill.filled { background: #10b981; }
+    .progress-fill.over { background: #ef4444; }
+
+    .capacity-footer { display: flex; gap: 16px; }
+    .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; color: #64748b; }
+    .status-indicator mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .status-indicator.success { color: #10b981; }
+    .status-indicator.danger { color: #ef4444; }
+
+    /* TABLE STYLES */
+    .table-card { overflow: hidden; }
+    .table-card mat-card-title { padding: 24px 24px 0; font-size: 1.15rem; font-weight: 700; color: #0f172a; }
+    .table-container { min-height: 300px; padding: 0 12px 12px; }
+    .enterprise-table { width: 100%; background: transparent; }
+
+    .task-info { display: flex; flex-direction: column; gap: 2px; }
+    .task-title { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
+    .task-meta { font-size: 0.75rem; color: #94a3b8; }
+
+    .hour-capsule {
+      background: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      color: #334155;
+      font-size: 0.85rem;
+    }
+
+    .progress-interact { display: flex; align-items: center; gap: 16px; width: 240px; }
+    .compact-slider { flex: 1; }
+    .pct-val { width: 45px; font-weight: 700; color: #64748b; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+    .workflow-badge {
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.02em;
     }
-    .backlog { background: #edf2f7; color: #4a5568; }
-    .planned { background: #ebf8ff; color: #2b6cb0; }
-    .inprogress { background: #fffaf0; color: #c05621; }
-    .completed { background: #f0fff4; color: #276749; }
-    
-    .empty-tasks { padding: 48px; text-align: center; color: var(--text-secondary); }
-    .empty-tasks mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.3; }
-    .empty-tasks p { margin-bottom: 16px; }
+    .workflow-badge[data-status="Backlog"] { background: #f8fafc; color: #64748b; }
+    .workflow-badge[data-status="Planned"] { background: #eff6ff; color: #2563eb; }
+    .workflow-badge[data-status="InProgress"] { background: #fff7ed; color: #ea580c; }
+    .workflow-badge[data-status="Completed"] { background: #f0fdf4; color: #16a34a; }
+
+    .item-interactive-row:hover { background: #f8fafc; cursor: pointer; }
+
+    /* EMPTY STATE */
+    .empty-state-view {
+      padding: 80px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .empty-icon-wrap {
+      width: 72px;
+      height: 72px;
+      background: #f1f5f9;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .empty-icon-wrap mat-icon { font-size: 36px; width: 36px; height: 36px; color: #cbd5e1; }
+    .empty-state-view h3 { margin: 0; font-weight: 700; color: #1e293b; }
+    .empty-state-view p { color: #64748b; margin-top: 8px; margin-bottom: 24px; }
   `]
 })
 export class AssignmentManagerComponent implements OnInit {
@@ -168,6 +301,8 @@ export class AssignmentManagerComponent implements OnInit {
   startDate = signal<string | null>(null);
   isFrozen = signal<boolean>(false);
   assignments = signal<TaskAssignment[]>([]);
+  
+  isLead = computed(() => this.authService.isTeamLead());
   
   displayedColumns: string[] = ['title', 'hours', 'progress', 'status'];
   
@@ -215,36 +350,31 @@ export class AssignmentManagerComponent implements OnInit {
   openItemPicker() {
     const dialogRef = this.dialog.open(ItemPickerDialogComponent, { width: '600px' });
     
-    dialogRef.afterClosed().subscribe(item => {
-      if (item) {
-        this.assignItem(item);
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.assignItem(result.item, result.userId);
       }
     });
   }
 
-  assignItem(item: BacklogItem) {
-    const userId = this.authService.currentUser()?.id;
-    if (!userId || !this.activePlanId()) return;
+  assignItem(item: BacklogItem, userId: string) {
+    if (!this.activePlanId()) return;
 
     const payload = {
-      weeklyPlanId: this.activePlanId()!,
       backlogItemId: item.id,
       userId: userId,
       assignedHours: item.estimatedHours
     };
 
-    if (this.totalAllocated() + item.estimatedHours > 30) {
-      if (!confirm(`Warning: Adding this item will put you over the 30h capacity. Continue?`)) {
-        return;
-      }
-    }
-
     this.assignmentService.assignTask(payload).subscribe({
       next: () => {
-        this.notificationService.success(`Assigned "${item.title}" to your plan.`);
+        this.notificationService.success(`Assigned "${item.title}" successfully.`);
         this.loadAssignments();
       },
-      error: () => this.notificationService.error('Failed to assign item')
+      error: (err: any) => {
+        const errorMsg = err.error?.message || 'Failed to assign item';
+        this.notificationService.error(errorMsg);
+      }
     });
   }
 
