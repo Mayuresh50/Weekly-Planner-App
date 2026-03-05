@@ -1,15 +1,15 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
-import { Category } from '../../../core/models/backlog';
+import { Category, BacklogItem } from '../../../core/models/backlog';
 
 @Component({
-  selector: 'app-create-backlog-dialog',
+  selector: 'app-backlog-item-dialog',
   standalone: true,
   imports: [
     CommonModule, 
@@ -21,7 +21,7 @@ import { Category } from '../../../core/models/backlog';
     MatButtonModule
   ],
   template: `
-    <h2 mat-dialog-title>Create New Backlog Item</h2>
+    <h2 mat-dialog-title>{{ isEdit ? 'Edit Backlog Item' : 'Create New Backlog Item' }}</h2>
     <mat-dialog-content>
       <form [formGroup]="itemForm" class="dialog-form">
         <mat-form-field appearance="outline" class="full-width">
@@ -55,7 +55,9 @@ import { Category } from '../../../core/models/backlog';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancel</button>
-      <button mat-flat-button color="primary" [disabled]="itemForm.invalid" (click)="onSave()">Create Item</button>
+      <button mat-flat-button color="primary" [disabled]="itemForm.invalid" (click)="onSave()">
+        {{ isEdit ? 'Save Changes' : 'Create Item' }}
+      </button>
     </mat-dialog-actions>
   `,
   styles: [`
@@ -63,11 +65,13 @@ import { Category } from '../../../core/models/backlog';
     .full-width { width: 100%; }
   `]
 })
-export class CreateBacklogDialogComponent {
+export class BacklogItemDialogComponent {
   private fb = inject(FormBuilder);
-  private dialogRef = inject(MatDialogRef<CreateBacklogDialogComponent>);
+  private dialogRef = inject(MatDialogRef<BacklogItemDialogComponent>);
+  public data = inject<BacklogItem>(MAT_DIALOG_DATA, { optional: true });
 
   Category = Category;
+  isEdit = false;
 
   itemForm = this.fb.group({
     title: ['', Validators.required],
@@ -75,6 +79,18 @@ export class CreateBacklogDialogComponent {
     category: [Category.Client, Validators.required],
     estimatedHours: [8, [Validators.required, Validators.min(1)]]
   });
+
+  constructor() {
+    if (this.data) {
+      this.isEdit = true;
+      this.itemForm.patchValue({
+        title: this.data.title,
+        description: this.data.description,
+        category: this.data.category,
+        estimatedHours: this.data.estimatedHours
+      });
+    }
+  }
 
   onCancel() {
     this.dialogRef.close();

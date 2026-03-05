@@ -30,15 +30,22 @@ public class ExceptionMiddleware
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        
+        var statusCode = exception switch
+        {
+            WeeklyPlanner.Application.Common.Exceptions.BusinessException => (int)HttpStatusCode.BadRequest,
+            _ => (int)HttpStatusCode.InternalServerError
+        };
+
+        context.Response.StatusCode = statusCode;
 
         var response = new 
         {
-            statusCode = context.Response.StatusCode,
-            message = exception.Message,
-            detailed = exception.StackTrace // In production, hide stack trace
+            status = "fail",
+            message = exception.Message
         };
 
-        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        return context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
     }
 }

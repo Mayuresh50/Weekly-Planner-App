@@ -25,11 +25,17 @@ public class AssignmentController : ControllerBase
     }
 
     [HttpPatch("{id}/progress")]
-    public async Task<ActionResult<TaskAssignmentDto>> UpdateProgress(Guid id, [FromBody] int progressPercentage)
+    public async Task<ActionResult<TaskAssignmentDto>> UpdateProgress(Guid id, UpdateProgressDto dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var role = User.FindFirstValue(ClaimTypes.Role)!;
-        return Ok(await _assignmentService.UpdateProgressAsync(id, progressPercentage, userId, role));
+        return Ok(await _assignmentService.UpdateProgressAsync(id, dto, userId, role));
+    }
+
+    [HttpGet("summary/active")]
+    public async Task<ActionResult<DashboardSummaryDto>> GetActiveSummary([FromQuery] DashboardFiltersDto filters)
+    {
+        return Ok(await _assignmentService.GetActiveDashboardSummaryAsync(filters));
     }
 
     [HttpGet("{weeklyPlanId}/summary")]

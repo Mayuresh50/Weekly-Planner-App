@@ -13,7 +13,6 @@ export interface TaskAssignment {
 }
 
 export interface CreateAssignment {
-  weeklyPlanId: string;
   backlogItemId: string;
   userId: string;
   assignedHours: number;

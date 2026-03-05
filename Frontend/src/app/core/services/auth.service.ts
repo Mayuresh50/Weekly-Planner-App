@@ -10,6 +10,7 @@ import { AuthResponse, User, Role } from '../models/auth';
 export class AuthService {
   private readonly AUTH_KEY = 'wp_auth';
   private readonly API_URL = 'http://localhost:5174/api/auth';
+  private readonly USER_API_URL = 'http://localhost:5174/api/User';
 
   currentUser = signal<User | null>(null);
   isAuthenticated = computed(() => !!this.currentUser());

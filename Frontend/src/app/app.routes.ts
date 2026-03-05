@@ -36,6 +36,12 @@ export const routes: Routes = [
       { 
         path: 'assignment', 
         loadComponent: () => import('./features/assignment/assignment-manager/assignment-manager.component').then(m => m.AssignmentManagerComponent) 
+      },
+      {
+        path: 'team',
+        loadComponent: () => import('./features/team/team-list/team-list.component').then(m => m.TeamListComponent),
+        canActivate: [authGuard],
+        data: { role: Role.TeamLead }
       }
     ]
   },

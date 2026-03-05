@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WeeklyPlanner.Application.Common.Interfaces;
 using WeeklyPlanner.Application.DTOs;
 using WeeklyPlanner.Domain.Entities;
+using WeeklyPlanner.Domain.Enums;
 
 namespace WeeklyPlanner.Application.Services;
 
@@ -61,5 +62,28 @@ public class AuthService : IAuthService
     {
         var user = await _context.Users.FindAsync(id);
         return user == null ? null : _mapper.Map<UserDto>(user);
+    }
+
+    public async Task<IEnumerable<UserDto>> GetTeamMembersAsync()
+    {
+        var users = await _context.Users
+            .Where(u => u.Role == Role.TeamMember)
+            .ToListAsync();
+
+        return _mapper.Map<IEnumerable<UserDto>>(users);
+    }
+
+    public async Task<bool> DeleteUserAsync(Guid id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return false;
+
+        // Remove user's assignments first to maintain referential integrity if not handled by cascade
+        var assignments = await _context.TaskAssignments.Where(a => a.UserId == id).ToListAsync();
+        _context.TaskAssignments.RemoveRange(assignments);
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

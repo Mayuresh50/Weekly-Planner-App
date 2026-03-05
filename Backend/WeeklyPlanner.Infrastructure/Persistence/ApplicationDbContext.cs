@@ -31,4 +31,19 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         base.OnModelCreating(modelBuilder);
     }
+
+    public async Task BeginTransactionAsync()
+    {
+        await Database.BeginTransactionAsync();
+    }
+
+    public async Task CommitTransactionAsync()
+    {
+        await Database.CommitTransactionAsync();
+    }
+
+    public async Task RollbackTransactionAsync()
+    {
+        await Database.RollbackTransactionAsync();
+    }
 }
