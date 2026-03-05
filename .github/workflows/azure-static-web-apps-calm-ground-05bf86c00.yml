@@ -20,11 +20,11 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
 
-          # Angular project folder
+          # Angular project root
           app_location: "Frontend"
 
-          # No Azure Functions
+          # No API in Static Web Apps
           api_location: ""
 
-          # Let Azure detect the build output automatically
-          output_location: ""
+          # Correct Angular build output
+          app_artifact_location: "Frontend/dist/Frontend"
