@@ -26,5 +26,5 @@ jobs:
           # No Azure Functions
           api_location: ""
 
-          # Angular build output
-          output_location: "dist/Frontend"
+          # Let Azure detect the build output automatically
+          output_location: ""
