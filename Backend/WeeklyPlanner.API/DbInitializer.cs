@@ -18,7 +18,8 @@ public static class DbInitializer
         // Ensure database exists
         context.Database.EnsureCreated();
 
-        if (!await context.Users.AnyAsync())
+        var userCount = await context.Users.CountAsync();
+        if (userCount == 0)
         {
             var lead = new User
             {
