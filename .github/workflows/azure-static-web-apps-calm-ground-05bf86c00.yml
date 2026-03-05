@@ -16,7 +16,7 @@ jobs:
     name: Build and Deploy Job
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
@@ -35,8 +35,8 @@ jobs:
           # No Azure Functions API
           api_location: ""
 
-          # Leave empty so Azure auto-detects dist folder
-          output_location: ""
+          # Angular build output (confirmed from your logs)
+          output_location: "dist/Frontend"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
