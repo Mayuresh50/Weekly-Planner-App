@@ -12,8 +12,10 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlite(configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+            options.UseCosmos(
+                configuration["Cosmos:Endpoint"] ?? "",
+                configuration["Cosmos:Key"] ?? "",
+                configuration["Cosmos:DatabaseName"] ?? "WeeklyPlanner"));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
         

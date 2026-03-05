@@ -21,115 +21,104 @@ public class AssignmentService : IAssignmentService
 
     public async Task<TaskAssignmentDto> AssignTaskAsync(CreateAssignmentDto dto)
     {
-        await _context.BeginTransactionAsync();
-        try
+        // 1. Auto-retrieve the ACTIVE WeeklyPlan
+        var now = DateTime.UtcNow;
+        var plan = await _context.WeeklyPlans
+            .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
+
+        if (plan == null) 
+            throw new BusinessException("No active weekly plan found for the current date.");
+        
+        if (plan.IsFrozen) 
+            throw new BusinessException("The current weekly plan is frozen and cannot be modified.");
+
+        // Fetch allocations separately (Cosmos doesn't support Include across containers)
+        var allocations = await _context.PlanAllocations
+            .Where(a => a.WeeklyPlanId == plan.Id)
+            .ToListAsync();
+
+        // 2. Validate User existence and role (ONLY TeamMember)
+        var user = await _context.Users.FindAsync(dto.UserId);
+        if (user == null) 
+            throw new BusinessException("The assigned user does not exist.");
+        
+        if (user.Role != Role.TeamMember)
+            throw new BusinessException("Assignments can ONLY be given to team members. Team leads cannot receive assignments.");
+
+        // 3. Validate backlog item existence and status
+        var backlogItem = await _context.BacklogItems.FindAsync(dto.BacklogItemId);
+        if (backlogItem == null) 
+            throw new BusinessException("The selected backlog item was not found.");
+        
+        if (backlogItem.Status != BacklogStatus.Backlog)
+            throw new BusinessException("Only items currently in the 'Backlog' can be assigned.");
+
+        // 4. Check aggregate member capacity limit (30h)
+        var existingAssignments = await _context.TaskAssignments
+            .Where(a => a.WeeklyPlanId == plan.Id && a.UserId == user.Id)
+            .ToListAsync();
+
+        var currentAssignedTotal = existingAssignments.Sum(a => a.AssignedHours);
+
+        if (currentAssignedTotal + dto.AssignedHours > 30)
+            throw new BusinessException($"Member {user.Name} cannot exceed 30 hours per week. (Current: {currentAssignedTotal}h, Selected: {dto.AssignedHours}h)");
+
+        // 5. Check category allocation limit
+        var categoryAllocation = allocations.FirstOrDefault(a => a.Category == backlogItem.Category);
+        if (categoryAllocation == null) 
+            throw new BusinessException($"No allocation found for category {backlogItem.Category}");
+
+        var allPlanAssignments = await _context.TaskAssignments
+            .Where(a => a.WeeklyPlanId == plan.Id)
+            .ToListAsync();
+
+        // Need to join backlog items in memory to check categories for the category allocation limit
+        var allBacklogItems = await _context.BacklogItems.ToListAsync();
+        
+        var categoryUsedHours = allPlanAssignments
+            .Join(allBacklogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+            .Where(x => x.bi.Category == backlogItem.Category)
+            .Sum(x => x.a.AssignedHours);
+
+        if (categoryUsedHours + dto.AssignedHours > categoryAllocation.AllocatedHours)
+            throw new BusinessException($"Category '{backlogItem.Category}' allocation exceeded. (Current: {categoryUsedHours}h, Selected: {dto.AssignedHours}h, Max Allowed: {categoryAllocation.AllocatedHours}h). Please increase this category's percentage in the Weekly Plan setup.");
+
+        // 6. Create TaskAssignment
+        var assignment = new TaskAssignment
         {
-            // 1. Auto-retrieve the ACTIVE WeeklyPlan
-            var now = DateTime.UtcNow;
-            var plan = await _context.WeeklyPlans
-                .Include(p => p.Allocations)
-                .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
+            Id = Guid.NewGuid(),
+            BacklogItemId = backlogItem.Id,
+            UserId = user.Id,
+            WeeklyPlanId = plan.Id,
+            AssignedHours = dto.AssignedHours,
+            Status = BacklogStatus.Planned,
+            ProgressPercentage = 0,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            if (plan == null) 
-                throw new BusinessException("No active weekly plan found for the current date.");
+        _context.TaskAssignments.Add(assignment);
+        backlogItem.Status = BacklogStatus.Planned;
+        
+        await _context.SaveChangesAsync();
+        
+        assignment.BacklogItem = backlogItem;
+        assignment.User = user;
             
-            if (plan.IsFrozen) 
-                throw new BusinessException("The current weekly plan is frozen and cannot be modified.");
-
-            // 2. Validate User existence and role (ONLY TeamMember)
-            var user = await _context.Users.FindAsync(dto.UserId);
-            if (user == null) 
-                throw new BusinessException("The assigned user does not exist.");
-            
-            if (user.Role != Role.TeamMember)
-                throw new BusinessException("Assignments can ONLY be given to team members. Team leads cannot receive assignments.");
-
-            // 3. Validate backlog item existence and status
-            var backlogItem = await _context.BacklogItems.FindAsync(dto.BacklogItemId);
-            if (backlogItem == null) 
-                throw new BusinessException("The selected backlog item was not found.");
-            
-            if (backlogItem.Status != BacklogStatus.Backlog)
-                throw new BusinessException("Only items currently in the 'Backlog' can be assigned.");
-
-            // 4. Check aggregate member capacity limit (30h) - SQLite compatible Sum
-            var existingAssignments = await _context.TaskAssignments
-                .Where(a => a.WeeklyPlanId == plan.Id && a.UserId == user.Id)
-                .Select(a => a.AssignedHours)
-                .ToListAsync();
-
-            var currentAssignedTotal = existingAssignments.Sum();
-
-            if (currentAssignedTotal + dto.AssignedHours > 30)
-                throw new BusinessException($"Member {user.Name} cannot exceed 30 hours per week. (Current: {currentAssignedTotal}h, Selected: {dto.AssignedHours}h)");
-
-            // 5. Check category allocation limit
-            var categoryAllocation = plan.Allocations.FirstOrDefault(a => a.Category == backlogItem.Category);
-            if (categoryAllocation == null) 
-                throw new BusinessException($"No allocation found for category {backlogItem.Category}");
-
-            var categoryUsedAssignments = await _context.TaskAssignments
-                .Include(a => a.BacklogItem)
-                .Where(a => a.WeeklyPlanId == plan.Id && a.BacklogItem.Category == backlogItem.Category)
-                .Select(a => a.AssignedHours)
-                .ToListAsync();
-
-            var categoryUsedHours = categoryUsedAssignments.Sum();
-
-            if (categoryUsedHours + dto.AssignedHours > categoryAllocation.AllocatedHours)
-                throw new BusinessException($"Category '{backlogItem.Category}' allocation exceeded. (Current: {categoryUsedHours}h, Selected: {dto.AssignedHours}h, Max Allowed: {categoryAllocation.AllocatedHours}h). Please increase this category's percentage in the Weekly Plan setup.");
-
-            // 6. Create TaskAssignment safely
-            var assignment = new TaskAssignment
-            {
-                Id = Guid.NewGuid(),
-                BacklogItemId = backlogItem.Id,
-                UserId = user.Id,
-                WeeklyPlanId = plan.Id,
-                AssignedHours = dto.AssignedHours,
-                Status = BacklogStatus.Planned,
-                ProgressPercentage = 0,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.TaskAssignments.Add(assignment);
-            
-            // Update backlog item status
-            backlogItem.Status = BacklogStatus.Planned;
-            
-            await _context.SaveChangesAsync();
-            await _context.CommitTransactionAsync();
-            
-            // Re-fetch to include relations for DTO
-            var result = await _context.TaskAssignments
-                .Include(a => a.BacklogItem)
-                .Include(a => a.User)
-                .FirstAsync(a => a.Id == assignment.Id);
-                
-            return _mapper.Map<TaskAssignmentDto>(result);
-        }
-        catch
-        {
-            await _context.RollbackTransactionAsync();
-            throw;
-        }
+        return _mapper.Map<TaskAssignmentDto>(assignment);
     }
 
     public async Task<TaskAssignmentDto> UpdateProgressAsync(Guid id, UpdateProgressDto dto, Guid userId, string userRole)
     {
-        var assignment = await _context.TaskAssignments
-            .Include(a => a.BacklogItem)
-            .Include(a => a.User)
-            .Include(a => a.WeeklyPlan)
-            .FirstOrDefaultAsync(a => a.Id == id);
-            
+        var assignment = await _context.TaskAssignments.FindAsync(id);
         if (assignment == null) 
             throw new BusinessException("Assignment not found.");
 
-        if (assignment.WeeklyPlan.IsFrozen) 
+        var plan = await _context.WeeklyPlans.FindAsync(assignment.WeeklyPlanId);
+        if (plan == null) throw new BusinessException("Weekly plan not found.");
+
+        if (plan.IsFrozen) 
             throw new BusinessException("Cannot update progress on a frozen weekly plan.");
 
-        // Member can only update their own tasks. Lead can update anything.
         if (userRole == Role.TeamMember.ToString() && assignment.UserId != userId)
             throw new BusinessException("Access denied. Members can only update their own assigned tasks.");
 
@@ -145,10 +134,18 @@ public class AssignmentService : IAssignmentService
             _ => BacklogStatus.InProgress
         };
 
-        // Sync with backlog item status
-        assignment.BacklogItem.Status = assignment.Status;
+        var backlogItem = await _context.BacklogItems.FindAsync(assignment.BacklogItemId);
+        if (backlogItem != null)
+        {
+            backlogItem.Status = assignment.Status;
+        }
 
         await _context.SaveChangesAsync();
+        
+        // Manual hydrate for DTO
+        assignment.BacklogItem = backlogItem!;
+        assignment.User = await _context.Users.FindAsync(assignment.UserId) ?? null!;
+        
         return _mapper.Map<TaskAssignmentDto>(assignment);
     }
 
@@ -160,7 +157,6 @@ public class AssignmentService : IAssignmentService
 
         if (plan == null)
         {
-            // Try to get the latest one if no active one right now
             plan = await _context.WeeklyPlans.OrderByDescending(p => p.StartDate).FirstOrDefaultAsync();
         }
 
@@ -171,23 +167,35 @@ public class AssignmentService : IAssignmentService
 
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid weeklyPlanId, DashboardFiltersDto filters)
     {
-        var plan = await _context.WeeklyPlans.Include(p => p.Allocations).FirstOrDefaultAsync(p => p.Id == weeklyPlanId);
+        var plan = await _context.WeeklyPlans.FindAsync(weeklyPlanId);
         if (plan == null) throw new Exception("Plan not found");
 
-        var assignmentsQuery = _context.TaskAssignments
-            .Include(a => a.BacklogItem)
-            .Include(a => a.User)
-            .Where(a => a.WeeklyPlanId == weeklyPlanId);
+        var allocations = await _context.PlanAllocations.Where(a => a.WeeklyPlanId == weeklyPlanId).ToListAsync();
 
-        if (filters.MemberId.HasValue) assignmentsQuery = assignmentsQuery.Where(a => a.UserId == filters.MemberId.Value);
-        if (filters.Category.HasValue) assignmentsQuery = assignmentsQuery.Where(a => a.BacklogItem.Category == filters.Category.Value);
-        if (filters.Status.HasValue) assignmentsQuery = assignmentsQuery.Where(a => a.Status == filters.Status.Value);
-
-        var assignments = await assignmentsQuery.ToListAsync();
-        var allPlanAssignments = await _context.TaskAssignments
-            .Include(a => a.BacklogItem)
+        var assignments = await _context.TaskAssignments
             .Where(a => a.WeeklyPlanId == weeklyPlanId)
             .ToListAsync();
+
+        var users = await _context.Users.ToListAsync();
+        var backlogItems = await _context.BacklogItems.ToListAsync();
+
+        // Enforce filters in memory
+        var filteredAssignments = assignments.AsEnumerable();
+        
+        if (filters.MemberId.HasValue) 
+            filteredAssignments = filteredAssignments.Where(a => a.UserId == filters.MemberId.Value);
+
+        var assignmentItems = filteredAssignments
+            .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+            .Join(users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u });
+
+        if (filters.Category.HasValue)
+            assignmentItems = assignmentItems.Where(x => x.bi.Category == filters.Category.Value);
+        
+        if (filters.Status.HasValue)
+            assignmentItems = assignmentItems.Where(x => x.a.Status == filters.Status.Value);
+
+        var finalItems = assignmentItems.ToList();
 
         var summary = new DashboardSummaryDto
         {
@@ -197,13 +205,14 @@ public class AssignmentService : IAssignmentService
                 EndDate = plan.EndDate,
                 IsFrozen = plan.IsFrozen,
                 TotalAvailable = plan.TotalAvailableHours,
-                TotalPlanned = allPlanAssignments.Sum(a => a.AssignedHours) // Memory
+                TotalPlanned = assignments.Sum(a => a.AssignedHours)
             },
-            CategoryUtilization = plan.Allocations.Select(alloc => 
+            CategoryUtilization = allocations.Select(alloc => 
             {
-                var used = allPlanAssignments
-                    .Where(a => a.BacklogItem.Category == alloc.Category)
-                    .Sum(a => a.AssignedHours); // Memory
+                var used = assignments
+                    .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+                    .Where(x => x.bi.Category == alloc.Category)
+                    .Sum(x => x.a.AssignedHours);
                 
                 return new CategoryUtilizationDto
                 {
@@ -213,24 +222,24 @@ public class AssignmentService : IAssignmentService
                     Percentage = alloc.AllocatedHours > 0 ? (used / alloc.AllocatedHours) * 100 : 0
                 };
             }).ToList(),
-            MemberProgress = assignments
-                .GroupBy(a => new { a.UserId, a.User.Name })
+            MemberProgress = finalItems
+                .GroupBy(x => new { x.a.UserId, x.u.Name })
                 .Select(g => new MemberProgressDto
                 {
                     Name = g.Key.Name,
                     Tasks = g.Count(),
-                    Completed = g.Count(a => a.Status == BacklogStatus.Completed),
-                    TotalHours = g.Sum(a => a.AssignedHours) // Memory
+                    Completed = g.Count(x => x.a.Status == BacklogStatus.Completed),
+                    TotalHours = g.Sum(x => x.a.AssignedHours)
                 }).ToList(),
-            TaskLevelProgress = assignments.Select(a => new TaskLevelProgressDto
+            TaskLevelProgress = finalItems.Select(x => new TaskLevelProgressDto
             {
-                Id = a.Id,
-                Title = a.BacklogItem.Title,
-                MemberName = a.User.Name,
-                Category = a.BacklogItem.Category,
-                Status = a.Status,
-                Progress = a.ProgressPercentage,
-                Hours = a.AssignedHours
+                Id = x.a.Id,
+                Title = x.bi.Title,
+                MemberName = x.u.Name,
+                Category = x.bi.Category,
+                Status = x.a.Status,
+                Progress = x.a.ProgressPercentage,
+                Hours = x.a.AssignedHours
             }).ToList()
         };
 

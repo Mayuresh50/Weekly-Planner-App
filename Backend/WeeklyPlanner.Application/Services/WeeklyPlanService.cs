@@ -23,8 +23,7 @@ public class WeeklyPlanService : IWeeklyPlanService
     {
         // 1. Handle overlapping plans (Strategy Re-initialization)
         var overlaps = await _context.WeeklyPlans
-            .Include(p => p.Assignments)
-            .Where(p => (p.StartDate <= dto.EndDate && p.EndDate >= dto.StartDate))
+            .Where(p => p.StartDate <= dto.EndDate && p.EndDate >= dto.StartDate)
             .ToListAsync();
 
         if (overlaps.Any())
@@ -35,8 +34,13 @@ public class WeeklyPlanService : IWeeklyPlanService
             // Cleanup non-frozen overlaps
             foreach (var oldPlan in overlaps)
             {
-                // Reset Backlog Item statuses for all assignments in the old plan
-                var backlogItemIds = oldPlan.Assignments.Select(a => a.BacklogItemId).ToList();
+                // Fetch assignments manually
+                var assignments = await _context.TaskAssignments
+                    .Where(a => a.WeeklyPlanId == oldPlan.Id)
+                    .ToListAsync();
+
+                // Reset Backlog Item statuses
+                var backlogItemIds = assignments.Select(a => a.BacklogItemId).ToList();
                 var backlogItems = await _context.BacklogItems
                     .Where(bi => backlogItemIds.Contains(bi.Id))
                     .ToListAsync();
@@ -44,6 +48,22 @@ public class WeeklyPlanService : IWeeklyPlanService
                 foreach (var item in backlogItems)
                 {
                     item.Status = BacklogStatus.Backlog;
+                }
+
+                // Remove assignments manually
+                foreach (var assignment in assignments)
+                {
+                    _context.TaskAssignments.Remove(assignment);
+                }
+
+                // Remove allocations manually
+                var oldAllocations = await _context.PlanAllocations
+                    .Where(a => a.WeeklyPlanId == oldPlan.Id)
+                    .ToListAsync();
+                
+                foreach (var alloc in oldAllocations)
+                {
+                    _context.PlanAllocations.Remove(alloc);
                 }
 
                 _context.WeeklyPlans.Remove(oldPlan);
@@ -62,17 +82,28 @@ public class WeeklyPlanService : IWeeklyPlanService
         var plan = _mapper.Map<WeeklyPlan>(dto);
         plan.TotalAvailableHours = totalCapacity;
 
-        // 4. Create allocations with decimal precision
-        plan.Allocations = new List<PlanAllocation>
-        {
-            new() { Category = Category.Client, AllocatedHours = totalCapacity * dto.ClientPercentage / 100.0m },
-            new() { Category = Category.TechDebt, AllocatedHours = totalCapacity * dto.TechDebtPercentage / 100.0m },
-            new() { Category = Category.RnD, AllocatedHours = totalCapacity * dto.RndPercentage / 100.0m }
-        };
-
         _context.WeeklyPlans.Add(plan);
         await _context.SaveChangesAsync();
-        return _mapper.Map<WeeklyPlanDto>(plan);
+
+        // 4. Create allocations with decimal precision
+        var allocations = new List<PlanAllocation>
+        {
+            new() { Id = Guid.NewGuid(), WeeklyPlanId = plan.Id, Category = Category.Client, AllocatedHours = totalCapacity * dto.ClientPercentage / 100.0m },
+            new() { Id = Guid.NewGuid(), WeeklyPlanId = plan.Id, Category = Category.TechDebt, AllocatedHours = totalCapacity * dto.TechDebtPercentage / 100.0m },
+            new() { Id = Guid.NewGuid(), WeeklyPlanId = plan.Id, Category = Category.RnD, AllocatedHours = totalCapacity * dto.RndPercentage / 100.0m }
+        };
+
+        foreach (var alloc in allocations)
+        {
+            _context.PlanAllocations.Add(alloc);
+        }
+
+        await _context.SaveChangesAsync();
+        
+        var result = _mapper.Map<WeeklyPlanDto>(plan);
+        result.Allocations = _mapper.Map<List<PlanAllocationDto>>(allocations);
+        
+        return result;
     }
 
     public async Task<WeeklyPlanDto> FreezePlanAsync(Guid id)
@@ -89,9 +120,17 @@ public class WeeklyPlanService : IWeeklyPlanService
     {
         var now = DateTime.UtcNow;
         var plan = await _context.WeeklyPlans
-            .Include(p => p.Allocations)
             .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
             
-        return plan == null ? null : _mapper.Map<WeeklyPlanDto>(plan);
+        if (plan == null) return null;
+
+        var dto = _mapper.Map<WeeklyPlanDto>(plan);
+        var allocations = await _context.PlanAllocations
+            .Where(a => a.WeeklyPlanId == plan.Id)
+            .ToListAsync();
+        
+        dto.Allocations = _mapper.Map<List<PlanAllocationDto>>(allocations);
+        
+        return dto;
     }
 }

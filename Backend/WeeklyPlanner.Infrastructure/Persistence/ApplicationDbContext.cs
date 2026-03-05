@@ -19,31 +19,50 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-        
-        // Precision for decimals
-        foreach (var property in modelBuilder.Model.GetEntityTypes()
-            .SelectMany(t => t.GetProperties())
-            .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
+        modelBuilder.Entity<User>(entity =>
         {
-            property.SetColumnType("decimal(18,2)");
-        }
+            entity.ToContainer("Users");
+            entity.HasPartitionKey(u => u.Id);
+            entity.HasNoDiscriminator();
+            entity.Property(u => u.Id).ToJsonProperty("id");
+        });
+
+        modelBuilder.Entity<BacklogItem>(entity =>
+        {
+            entity.ToContainer("BacklogItems");
+            entity.HasPartitionKey(b => b.Id);
+            entity.HasNoDiscriminator();
+            entity.Property(b => b.Id).ToJsonProperty("id");
+        });
+
+        modelBuilder.Entity<WeeklyPlan>(entity =>
+        {
+            entity.ToContainer("WeeklyPlans");
+            entity.HasPartitionKey(w => w.Id);
+            entity.HasNoDiscriminator();
+            entity.Property(w => w.Id).ToJsonProperty("id");
+        });
+
+        modelBuilder.Entity<PlanAllocation>(entity =>
+        {
+            entity.ToContainer("PlanAllocations");
+            entity.HasPartitionKey(p => p.WeeklyPlanId);
+            entity.HasNoDiscriminator();
+            entity.Property(p => p.Id).ToJsonProperty("id");
+        });
+
+        modelBuilder.Entity<TaskAssignment>(entity =>
+        {
+            entity.ToContainer("Assignments");
+            entity.HasPartitionKey(t => t.UserId);
+            entity.HasNoDiscriminator();
+            entity.Property(t => t.Id).ToJsonProperty("id");
+        });
 
         base.OnModelCreating(modelBuilder);
     }
 
-    public async Task BeginTransactionAsync()
-    {
-        await Database.BeginTransactionAsync();
-    }
-
-    public async Task CommitTransactionAsync()
-    {
-        await Database.CommitTransactionAsync();
-    }
-
-    public async Task RollbackTransactionAsync()
-    {
-        await Database.RollbackTransactionAsync();
-    }
+    public Task BeginTransactionAsync() => Task.CompletedTask;
+    public Task CommitTransactionAsync() => Task.CompletedTask;
+    public Task RollbackTransactionAsync() => Task.CompletedTask;
 }
