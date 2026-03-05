@@ -18,35 +18,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Install dependencies
       - name: Install dependencies
         working-directory: Frontend
         run: npm install
 
-      # Build Angular
       - name: Build Angular
         working-directory: Frontend
         run: npm run build
 
-      # Deploy to Azure Static Web Apps
-      - name: Deploy
+      - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_CALM_GROUND_05BF86C00 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
 
-          # Skip Azure build
           skip_app_build: true
-
-          # Deploy built Angular output
-          app_location: "Frontend/dist/Frontend"
+          app_location: "Frontend/dist/Frontend/browser"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
