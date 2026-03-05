@@ -29,14 +29,14 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
 
-          # Angular app source
+          # Angular project folder
           app_location: "Frontend"
 
-          # No Azure Functions API
+          # no API here
           api_location: ""
 
-          # Angular build output folder
-          output_location: "dist/Frontend"
+          # tell Azure exactly where index.html exists
+          app_artifact_location: "dist/Frontend"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
