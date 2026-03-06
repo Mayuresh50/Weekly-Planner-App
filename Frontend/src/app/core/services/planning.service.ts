@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { WeeklyPlan, CreateWeeklyPlan } from '../models/planning';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PlanningService {
-  private readonly API_URL = 'http://localhost:5174/api/planning';
+  private readonly API_URL = `${environment.apiBaseUrl}/planning`;
 
   constructor(private http: HttpClient) {}
 
