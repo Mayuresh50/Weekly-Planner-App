@@ -27,8 +27,12 @@ public class AssignmentController : ControllerBase
     [HttpPatch("{id}/progress")]
     public async Task<ActionResult<TaskAssignmentDto>> UpdateProgress(Guid id, [FromBody] UpdateProgressDto dto)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var role = User.FindFirstValue(ClaimTypes.Role)!;
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        
+        var userId = Guid.Parse(userIdStr);
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        
         return Ok(await _assignmentService.UpdateProgressAsync(id, dto, userId, role));
     }
 
