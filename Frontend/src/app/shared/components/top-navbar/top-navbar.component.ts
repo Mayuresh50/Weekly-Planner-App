@@ -46,11 +46,6 @@ import { Router } from '@angular/router';
         </div>
 
         <mat-menu #userMenu="matMenu" xPosition="before" class="modern-menu">
-          // <button mat-menu-item (click)="authService.toggleRole()">
-          //   <mat-icon>sync_alt</mat-icon>
-          //   <span>Switch to {{ authService.isTeamLead() ? 'Team Member' : 'Team Lead' }}</span>
-          // </button>
-          <mat-divider></mat-divider>
           <button mat-menu-item (click)="authService.logout()">
             <mat-icon>logout</mat-icon>
             <span>Logout</span>
