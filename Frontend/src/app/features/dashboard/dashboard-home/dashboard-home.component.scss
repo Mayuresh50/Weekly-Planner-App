@@ -29,19 +29,13 @@
   letter-spacing: -0.05em;
 }
 
-.role-badge {
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  background: #f1f5f9;
+.role-display {
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #64748b;
-  border-radius: 8px;
-}
-
-.role-badge.lead {
-  background: #eff6ff;
-  color: #3b82f6;
+  background: #f1f5f9;
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 .hero-subtitle {

@@ -38,9 +38,7 @@ import { Router } from '@angular/router';
         <div class="user-profile" [matMenuTriggerFor]="userMenu">
           <div class="user-info">
             <span class="username">{{ authService.currentUser()?.name }}</span>
-            <span class="role-badge" [class.lead]="authService.isTeamLead()">
-              {{ authService.currentUser()?.role }}
-            </span>
+            <span class="role-text">{{ authService.currentUser()?.role }}</span>
           </div>
           <div class="avatar">
             {{ getInitials(authService.currentUser()?.name) }}
@@ -134,20 +132,12 @@ import { Router } from '@angular/router';
       color: #1e293b;
     }
 
-    .role-badge {
-      font-size: 0.65rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      background: #f1f5f9;
+    .role-text {
+      font-size: 0.7rem;
+      font-weight: 600;
       color: #64748b;
-      border-radius: 6px;
-      margin-top: 2px;
-    }
-
-    .role-badge.lead {
-      background: #eff6ff;
-      color: #3b82f6;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .avatar {

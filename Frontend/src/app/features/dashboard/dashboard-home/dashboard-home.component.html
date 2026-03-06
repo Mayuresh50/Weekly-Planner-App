@@ -4,16 +4,14 @@
     <div class="hero-content">
       <div class="greeting-row">
         <h1>Hi {{ authService.currentUser()?.name }}</h1>
-        <span class="role-badge" [class.lead]="authService.isTeamLead()">
-          {{ authService.currentUser()?.role }}
-        </span>
+        <span class="role-display">({{ authService.currentUser()?.role }})</span>
       </div>
       <p class="hero-subtitle">What do you want to do today?</p>
     </div>
   </header>
 
   <!-- PLANNING STATUS BANNER -->
-  <section class="status-banner-container" *ngIf="!activePlan()">
+  <section class="status-banner-container" *ngIf="!activePlan() && authService.isTeamLead()">
     <div class="status-banner info">
       <mat-icon>info</mat-icon>
       <div class="banner-text">
@@ -23,11 +21,10 @@
     </div>
   </section>
 
-  <!-- ACTION CARD GRID -->
-  <section class="action-grid">
+  <!-- TEAM LEAD ACTION GRID -->
+  <section class="action-grid" *ngIf="authService.isTeamLead()">
     <app-action-card
-      *ngIf="authService.isTeamLead()"
-      icon="add_calendar"
+      icon="calendar_month"
       title="Start a New Week"
       description="Set up a new planning cycle, define availability and category budgets."
       route="/planning"
@@ -41,7 +38,6 @@
     ></app-action-card>
 
     <app-action-card
-      *ngIf="authService.isTeamLead()"
       icon="group"
       title="Manage Team Members"
       description="View capacity and manage your engineering squad members."
@@ -49,10 +45,41 @@
     ></app-action-card>
 
     <app-action-card
+      icon="task_alt"
+      title="Assignments"
+      description="Review task assignments and project workload distribution."
+      route="/assignments"
+    ></app-action-card>
+  </section>
+
+  <!-- TEAM MEMBER ACTION GRID -->
+  <section class="action-grid" *ngIf="!authService.isTeamLead()">
+    <app-action-card
+      icon="list_alt"
+      title="My Tasks"
+      description="View and manage the tasks assigned to you for the current week."
+      route="/assignments"
+    ></app-action-card>
+
+    <app-action-card
+      icon="trending_up"
+      title="Update Progress"
+      description="Log your daily progress and mark tasks as complete."
+      route="/assignments"
+    ></app-action-card>
+
+    <app-action-card
+      icon="calendar_today"
+      title="Weekly Plan"
+      description="View the current week's global plan and team allocations."
+      route="/planning"
+    ></app-action-card>
+
+    <app-action-card
       icon="history"
-      title="View Past Weeks"
-      description="Look at completed planning cycles and track historic performance."
-      route="/dashboard" 
+      title="Past Weeks"
+      description="Browse your personal task history from previous weeks."
+      route="/planning/history"
     ></app-action-card>
   </section>
 
@@ -63,10 +90,17 @@
         <mat-icon>download</mat-icon>
         <span>Download My Data</span>
       </button>
-      <button mat-stroked-button (click)="onLoadData()">
+      <button mat-stroked-button (click)="fileInput.click()">
         <mat-icon>upload</mat-icon>
         <span>Load Data from File</span>
       </button>
+      <input 
+        #fileInput 
+        type="file" 
+        style="display: none" 
+        (change)="onLoadData($event)"
+        accept=".json"
+      >
       <button mat-stroked-button (click)="onSeedSample()">
         <mat-icon>auto_fix_high</mat-icon>
         <span>Seed Sample Data</span>
