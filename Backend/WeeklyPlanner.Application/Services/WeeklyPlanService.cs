@@ -127,4 +127,13 @@ public class WeeklyPlanService : IWeeklyPlanService
         
         return dto;
     }
+
+    public async Task<IEnumerable<WeeklyPlanDto>> GetAllPlansAsync()
+    {
+        var plans = await _context.WeeklyPlans
+            .OrderByDescending(p => p.StartDate)
+            .ToListAsync();
+            
+        return _mapper.Map<List<WeeklyPlanDto>>(plans);
+    }
 }

@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="publish\**" CopyToPublishDirectory="Never" />
+    <Content Update="publish\**" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WeeklyPlanner.Infrastructure\WeeklyPlanner.Infrastructure.csproj" />
     <ProjectReference Include="..\WeeklyPlanner.Application\WeeklyPlanner.Application.csproj" />
   </ItemGroup>
