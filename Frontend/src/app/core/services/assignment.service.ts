@@ -45,4 +45,9 @@ export class AssignmentService {
     }
     return this.http.get<DashboardSummary>(`${this.API_URL}/summary/active`, { params });
   }
+
+  getDashboard() {
+    return this.http.get<DashboardSummary>(`${environment.apiBaseUrl}/dashboard`);
+  }
 }
+

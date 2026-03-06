@@ -1,0 +1,128 @@
+.dashboard-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-hero {
+  margin-bottom: 48px;
+}
+
+.greeting-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.dashboard-hero h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.05em;
+}
+
+.role-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 8px;
+}
+
+.role-badge.lead {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.hero-subtitle {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* STATUS BANNER */
+.status-banner-container {
+  margin-bottom: 40px;
+}
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-radius: 16px;
+}
+
+.status-banner.info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+}
+
+.status-banner mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.banner-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.banner-text strong {
+  font-weight: 700;
+}
+
+/* ACTION GRID */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 64px;
+}
+
+/* UTILITY BAR */
+.utility-bar {
+  display: flex;
+  align-items: center;
+  padding: 24px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.utility-group {
+  display: flex;
+  gap: 12px;
+}
+
+.utility-bar button {
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.spacer { flex: 1; }
+
+@media (max-width: 768px) {
+  .utility-bar {
+      flex-direction: column;
+      gap: 16px;
+      align-items: stretch;
+  }
+  
+  .utility-group {
+      flex-direction: column;
+  }
+}
