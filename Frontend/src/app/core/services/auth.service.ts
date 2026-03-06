@@ -2,6 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { AuthResponse, User, Role } from '../models/auth';
 
 @Injectable({
@@ -9,8 +10,8 @@ import { AuthResponse, User, Role } from '../models/auth';
 })
 export class AuthService {
   private readonly AUTH_KEY = 'wp_auth';
-  private readonly API_URL = 'http://localhost:5174/api/auth';
-  private readonly USER_API_URL = 'http://localhost:5174/api/User';
+  private readonly API_URL = `${environment.apiBaseUrl}/auth`;
+  private readonly USER_API_URL = `${environment.apiBaseUrl}/User`;
 
   currentUser = signal<User | null>(null);
   isAuthenticated = computed(() => !!this.currentUser());

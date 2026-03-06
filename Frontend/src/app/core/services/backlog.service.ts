@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BacklogItem, CreateBacklogItem } from '../models/backlog';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class BacklogService {
-  private readonly API_URL = 'http://localhost:5174/api/backlog';
+  private readonly API_URL = `${environment.apiBaseUrl}/backlog`;
 
   constructor(private http: HttpClient) {}
 
