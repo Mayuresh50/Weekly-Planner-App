@@ -24,7 +24,9 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        var users = await _context.Users.ToListAsync();
+        var user = users.FirstOrDefault(u => u.Email == dto.Email);
+        
         if (user == null || !_passwordHasher.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid email or password.");
 
@@ -37,7 +39,8 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
+        var users = await _context.Users.ToListAsync();
+        if (users.Any(u => u.Email == dto.Email))
             throw new Exception("Email already registered.");
 
         var user = new User

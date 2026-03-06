@@ -34,8 +34,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular", policy =>
     {
         policy.WithOrigins(
-        "http://localhost:4200",
-        "https://weeklyplanner-ui.azurestaticapps.net"
+            "http://localhost:4200",
+            "https://calm-ground-05bf86c00.1.azurestaticapps.net"
         )
         .AllowAnyHeader()
         .AllowAnyMethod();
@@ -56,7 +56,7 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token. Example: 'Bearer 12345abcdef'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -98,11 +98,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(
-            builder.Configuration["Jwt:Secret"]
-            ?? "SECRET_MUST_BE_32_CHARACTERS_LONG_MIN_"
+                builder.Configuration["Jwt:Key"] 
+                ?? builder.Configuration["Jwt:Secret"] 
+                ?? "A_VERY_SECURE_AND_LONG_KEY_FOR_JWT_TOKEN_GENERATION_12345"
+            )
         )
-    )
-};
+    };
 
 
 });

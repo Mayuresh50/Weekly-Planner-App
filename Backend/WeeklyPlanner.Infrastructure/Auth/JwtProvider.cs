@@ -26,7 +26,11 @@ public class JwtProvider : IJwtProvider
             new(ClaimTypes.Role, user.Role.ToString())
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"] ?? "SECRET_MUST_BE_32_CHARACTERS_LONG_MIN_"));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+            _configuration["Jwt:Key"] 
+            ?? _configuration["Jwt:Secret"] 
+            ?? "A_VERY_SECURE_AND_LONG_KEY_FOR_JWT_TOKEN_GENERATION_12345"
+        ));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(

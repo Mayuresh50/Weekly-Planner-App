@@ -26,7 +26,7 @@ public class UserController : ControllerBase
 
     [HttpPost("members")]
     [Authorize(Roles = "TeamLead")]
-    public async Task<ActionResult<AuthResponseDto>> RegisterMember(RegisterDto dto)
+    public async Task<ActionResult<AuthResponseDto>> RegisterMember([FromBody] RegisterDto dto)
     {
         // Force role to TeamMember for this endpoint
         dto.Role = WeeklyPlanner.Domain.Enums.Role.TeamMember;

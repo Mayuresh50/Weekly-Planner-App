@@ -19,7 +19,7 @@ public class PlanningController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "TeamLead")]
-    public async Task<ActionResult<WeeklyPlanDto>> Create(CreateWeeklyPlanDto dto)
+    public async Task<ActionResult<WeeklyPlanDto>> Create([FromBody] CreateWeeklyPlanDto dto)
     {
         return Ok(await _planningService.CreatePlanAsync(dto));
     }

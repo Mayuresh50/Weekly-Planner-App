@@ -18,11 +18,17 @@ Desktop.ini
 **/bin/
 **/obj/
 **/TestResults/
+publish/
 *.db
 *.db-shm
 *.db-wal
 *.log
 *.tmp
+
+## Deployment Artifacts
+*.zip
+*.tar
+*.gz
 
 ## User-specific config
 appsettings.Local.json
