@@ -1,0 +1,81 @@
+<div class="dashboard-page">
+  <!-- WELCOME HEADER -->
+  <header class="dashboard-hero">
+    <div class="hero-content">
+      <div class="greeting-row">
+        <h1>Hi {{ authService.currentUser()?.name }}</h1>
+        <span class="role-badge" [class.lead]="authService.isTeamLead()">
+          {{ authService.currentUser()?.role }}
+        </span>
+      </div>
+      <p class="hero-subtitle">What do you want to do today?</p>
+    </div>
+  </header>
+
+  <!-- PLANNING STATUS BANNER -->
+  <section class="status-banner-container" *ngIf="!activePlan()">
+    <div class="status-banner info">
+      <mat-icon>info</mat-icon>
+      <div class="banner-text">
+        <strong>No planning weeks yet.</strong>
+        <span>Click 'Start a New Week' to begin!</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTION CARD GRID -->
+  <section class="action-grid">
+    <app-action-card
+      *ngIf="authService.isTeamLead()"
+      icon="add_calendar"
+      title="Start a New Week"
+      description="Set up a new planning cycle, define availability and category budgets."
+      route="/planning"
+    ></app-action-card>
+
+    <app-action-card
+      icon="assignment"
+      title="Manage Backlog"
+      description="Add, edit or browse work items. Prepare your engineering roadmap."
+      route="/backlog"
+    ></app-action-card>
+
+    <app-action-card
+      *ngIf="authService.isTeamLead()"
+      icon="group"
+      title="Manage Team Members"
+      description="View capacity and manage your engineering squad members."
+      route="/team"
+    ></app-action-card>
+
+    <app-action-card
+      icon="history"
+      title="View Past Weeks"
+      description="Look at completed planning cycles and track historic performance."
+      route="/dashboard" 
+    ></app-action-card>
+  </section>
+
+  <!-- BOTTOM UTILITY BAR -->
+  <footer class="utility-bar">
+    <div class="utility-group">
+      <button mat-stroked-button color="primary" (click)="onDownloadData()">
+        <mat-icon>download</mat-icon>
+        <span>Download My Data</span>
+      </button>
+      <button mat-stroked-button (click)="onLoadData()">
+        <mat-icon>upload</mat-icon>
+        <span>Load Data from File</span>
+      </button>
+      <button mat-stroked-button (click)="onSeedSample()">
+        <mat-icon>auto_fix_high</mat-icon>
+        <span>Seed Sample Data</span>
+      </button>
+    </div>
+    <span class="spacer"></span>
+    <button mat-button color="warn" (click)="onResetApp()">
+      <mat-icon>refresh</mat-icon>
+      <span>Reset App</span>
+    </button>
+  </footer>
+</div>

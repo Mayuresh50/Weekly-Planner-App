@@ -1,77 +1,57 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { AuthService } from '../../../core/services/auth.service';
 import { PlanningService } from '../../../core/services/planning.service';
-import { AssignmentService } from '../../../core/services/assignment.service';
-import { DashboardSummary } from '../../../core/models/assignment';
-import { LeadDashboardComponent } from '../components/lead-dashboard/lead-dashboard.component';
-import { MemberDashboardComponent } from '../components/member-dashboard/member-dashboard.component';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ActionCardComponent } from '../../../shared/components/action-card/action-card.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { WeeklyPlan } from '../../../core/models/planning';
 
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
   imports: [
     CommonModule, 
-    MatProgressSpinnerModule,
-    LeadDashboardComponent,
-    MemberDashboardComponent
+    MatButtonModule, 
+    MatIconModule, 
+    MatCardModule,
+    ActionCardComponent
   ],
-  template: `
-    <div class="dashboard-container">
-      <ng-container *ngIf="isLoading(); else content">
-        <div class="loading-state">
-          <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
-          <p>Loading your dashboard...</p>
-        </div>
-      </ng-container>
-
-      <ng-template #content>
-        <app-lead-dashboard 
-          *ngIf="authService.isTeamLead(); else memberView"
-          [summary]="summary()">
-        </app-lead-dashboard>
-
-        <ng-template #memberView>
-          <app-member-dashboard 
-            [summary]="summary()">
-          </app-member-dashboard>
-        </ng-template>
-      </ng-template>
-    </div>
-  `,
-  styles: [`
-    .dashboard-container { padding: 32px; background: #f8fafc; min-height: calc(100vh - 64px); }
-    .loading-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 64px;
-      color: #64748b;
-    }
-    .loading-state p { margin-top: 16px; font-weight: 500; }
-  `]
+  templateUrl: './dashboard-home.component.html',
+  styleUrls: ['./dashboard-home.component.scss']
 })
 export class DashboardHomeComponent implements OnInit {
   authService = inject(AuthService);
   private planningService = inject(PlanningService);
-  private assignmentService = inject(AssignmentService);
+  private notificationService = inject(NotificationService);
 
-  summary = signal<DashboardSummary | null>(null);
-  isLoading = signal(true);
+  activePlan = signal<WeeklyPlan | null>(null);
 
   ngOnInit() {
-    this.loadDashboardData();
+    this.loadActivePlan();
   }
 
-  loadDashboardData() {
-    this.assignmentService.getActiveDashboardSummary().subscribe({
-      next: (data) => {
-        this.summary.set(data);
-        this.isLoading.set(false);
-      },
-      error: () => this.isLoading.set(false)
+  loadActivePlan() {
+    this.planningService.getCurrentPlan().subscribe(plan => {
+      this.activePlan.set(plan);
     });
+  }
+
+  onDownloadData() {
+    this.notificationService.info('Exporting your workspace data...');
+  }
+
+  onLoadData() {
+    this.notificationService.info('Select a configuration file to load.');
+  }
+
+  onSeedSample() {
+    this.notificationService.success('Sample data generated successfully!');
+  }
+
+  onResetApp() {
+    this.notificationService.info('Application state has been reset.');
   }
 }

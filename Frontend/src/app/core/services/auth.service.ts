@@ -49,6 +49,21 @@ export class AuthService {
     this.currentUser.set(response.user);
   }
 
+  toggleRole() {
+    const user = this.currentUser();
+    if (user) {
+      user.role = user.role === Role.TeamLead ? Role.TeamMember : Role.TeamLead;
+      this.currentUser.set({ ...user });
+      // Update storage to persist for refresh
+      const data = localStorage.getItem(this.AUTH_KEY);
+      if (data) {
+        const auth = JSON.parse(data) as AuthResponse;
+        auth.user = user;
+        localStorage.setItem(this.AUTH_KEY, JSON.stringify(auth));
+      }
+    }
+  }
+
   private loadStorage() {
     const data = localStorage.getItem(this.AUTH_KEY);
     if (data) {

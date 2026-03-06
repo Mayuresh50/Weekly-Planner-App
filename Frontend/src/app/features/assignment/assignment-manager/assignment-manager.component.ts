@@ -326,18 +326,23 @@ export class AssignmentManagerComponent implements OnInit {
   }
 
   loadAssignments() {
-    const userId = this.authService.currentUser()?.id;
-    if (this.activePlanId() && userId) {
-      this.assignmentService.getDashboardSummary(this.activePlanId()!).subscribe(summary => {
-        // Find tasks for current user
-        const userTasks = summary.taskLevelProgress.filter(t => t.memberName === this.authService.currentUser()?.name);
-        // Map to TaskAssignment-like structure for the table
-        this.assignments.set(userTasks.map(t => ({
+    const user = this.authService.currentUser();
+    if (this.activePlanId() && user) {
+      this.assignmentService.getDashboard().subscribe(summary => {
+        let tasks = summary.taskLevelProgress;
+        
+        // If not a lead, only show personal assignments
+        if (!this.isLead()) {
+          tasks = tasks.filter(t => t.memberName === user.name);
+        }
+
+        // Map Dashboard Task to Local Assignment display model
+        this.assignments.set(tasks.map(t => ({
           id: t.id,
           weeklyPlanId: this.activePlanId()!,
-          backlogItemId: '', // not needed for display
+          backlogItemId: '', // Not used for display
           backlogItemTitle: t.title,
-          userId: userId,
+          userId: '', // Not used for display
           userName: t.memberName,
           assignedHours: t.hours,
           progressPercentage: t.progress,

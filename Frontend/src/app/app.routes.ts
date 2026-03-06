@@ -42,6 +42,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/team/team-list/team-list.component').then(m => m.TeamListComponent),
         canActivate: [authGuard],
         data: { role: Role.TeamLead }
+      },
+      {
+        path: 'weeks/history',
+        loadComponent: () => import('./features/dashboard/dashboard-home/dashboard-home.component').then(m => m.DashboardHomeComponent)
       }
     ]
   },
