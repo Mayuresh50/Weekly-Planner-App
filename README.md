@@ -4,6 +4,23 @@ An enterprise-grade full-stack platform for managing team backlogs, weekly sprin
 
 ---
 
+##Login Credentials : 
+
+For Team Lead : 
+Username : lead@test.com
+Password : password123
+
+For Team Members : 
+1. Username : mayuresh@test.com
+   Password : mayuresh123
+
+2. Username : prajwal@test.com
+   Password : prajwal123
+
+3. Username : hitesh@test.com
+   Password : hitesh123
+
+
 ## 🚀 Live Application Links
 
 - **Frontend (Production)**: [https://calm-ground-05bf86c00.1.azurestaticapps.net](https://calm-ground-05bf86c00.1.azurestaticapps.net)
