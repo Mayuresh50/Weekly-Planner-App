@@ -21,11 +21,10 @@ public class AssignmentService : IAssignmentService
 
     public async Task<TaskAssignmentDto> AssignTaskAsync(CreateAssignmentDto dto)
     {
-        // 1. Auto-retrieve the ACTIVE WeeklyPlan
         var now = DateTime.UtcNow;
-        var plan = await _context.WeeklyPlans
-            .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
-
+        var plans = await _context.WeeklyPlans.ToListAsync();
+        var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
+        
         if (plan == null) 
             throw new BusinessException("No active weekly plan found for the current date.");
         
@@ -152,12 +151,13 @@ public class AssignmentService : IAssignmentService
     public async Task<DashboardSummaryDto> GetActiveDashboardSummaryAsync(DashboardFiltersDto filters)
     {
         var now = DateTime.UtcNow;
-        var plan = await _context.WeeklyPlans
-            .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
+        var plans = await _context.WeeklyPlans.ToListAsync();
+        var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
 
         if (plan == null)
         {
-            plan = await _context.WeeklyPlans.OrderByDescending(p => p.StartDate).FirstOrDefaultAsync();
+            var allPlans = await _context.WeeklyPlans.ToListAsync();
+            plan = allPlans.OrderByDescending(p => p.StartDate).FirstOrDefault();
         }
 
         if (plan == null) return new DashboardSummaryDto();

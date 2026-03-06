@@ -76,7 +76,8 @@ public class WeeklyPlanService : IWeeklyPlanService
             throw new BusinessException("Allocation percentages must equal 100%");
 
         // 3. Calculate capacity based on TEAM_MEMBER users
-        var memberCount = await _context.Users.CountAsync(u => u.Role == Role.TeamMember);
+        var allUsers = await _context.Users.ToListAsync();
+        var memberCount = allUsers.Count(u => u.Role == Role.TeamMember);
         var totalCapacity = memberCount * 30;
 
         var plan = _mapper.Map<WeeklyPlan>(dto);
@@ -119,8 +120,8 @@ public class WeeklyPlanService : IWeeklyPlanService
     public async Task<WeeklyPlanDto?> GetCurrentPlanAsync()
     {
         var now = DateTime.UtcNow;
-        var plan = await _context.WeeklyPlans
-            .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
+        var plans = await _context.WeeklyPlans.ToListAsync();
+        var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
             
         if (plan == null) return null;
 

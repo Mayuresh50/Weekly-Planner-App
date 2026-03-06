@@ -19,7 +19,7 @@ public class BacklogController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "TeamLead")]
-    public async Task<ActionResult<BacklogItemDto>> Create(CreateBacklogItemDto dto)
+    public async Task<ActionResult<BacklogItemDto>> Create([FromBody] CreateBacklogItemDto dto)
     {
         return Ok(await _backlogService.CreateItemAsync(dto));
     }
@@ -38,7 +38,7 @@ public class BacklogController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "TeamLead")]
-    public async Task<ActionResult<BacklogItemDto>> Update(Guid id, UpdateBacklogItemDto dto)
+    public async Task<ActionResult<BacklogItemDto>> Update(Guid id, [FromBody] UpdateBacklogItemDto dto)
     {
         return Ok(await _backlogService.UpdateItemAsync(id, dto));
     }

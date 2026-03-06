@@ -19,13 +19,13 @@ public class AssignmentController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<TaskAssignmentDto>> Assign(CreateAssignmentDto dto)
+    public async Task<ActionResult<TaskAssignmentDto>> Assign([FromBody] CreateAssignmentDto dto)
     {
         return Ok(await _assignmentService.AssignTaskAsync(dto));
     }
 
     [HttpPatch("{id}/progress")]
-    public async Task<ActionResult<TaskAssignmentDto>> UpdateProgress(Guid id, UpdateProgressDto dto)
+    public async Task<ActionResult<TaskAssignmentDto>> UpdateProgress(Guid id, [FromBody] UpdateProgressDto dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var role = User.FindFirstValue(ClaimTypes.Role)!;
