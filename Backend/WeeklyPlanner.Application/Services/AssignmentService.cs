@@ -21,30 +21,29 @@ public class AssignmentService : IAssignmentService
 
     public async Task<TaskAssignmentDto> AssignTaskAsync(CreateAssignmentDto dto)
     {
+        if (dto == null) throw new BusinessException("Assignment data is required.");
+
         var now = DateTime.UtcNow;
         var plans = await _context.WeeklyPlans.ToListAsync();
         var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
-        
+
         if (plan == null) 
             throw new BusinessException("No active weekly plan found for the current date.");
         
         if (plan.IsFrozen) 
             throw new BusinessException("The current weekly plan is frozen and cannot be modified.");
 
-        // Fetch allocations separately (Cosmos doesn't support Include across containers)
         var allocations = await _context.PlanAllocations
             .Where(a => a.WeeklyPlanId == plan.Id)
             .ToListAsync();
 
-        // 2. Validate User existence and role (ONLY TeamMember)
         var user = await _context.Users.FindAsync(dto.UserId);
         if (user == null) 
             throw new BusinessException("The assigned user does not exist.");
         
         if (user.Role != Role.TeamMember)
-            throw new BusinessException("Assignments can ONLY be given to team members. Team leads cannot receive assignments.");
+            throw new BusinessException("Assignments can ONLY be given to team members.");
 
-        // 3. Validate backlog item existence and status
         var backlogItem = await _context.BacklogItems.FindAsync(dto.BacklogItemId);
         if (backlogItem == null) 
             throw new BusinessException("The selected backlog item was not found.");
@@ -52,7 +51,6 @@ public class AssignmentService : IAssignmentService
         if (backlogItem.Status != BacklogStatus.Backlog)
             throw new BusinessException("Only items currently in the 'Backlog' can be assigned.");
 
-        // 4. Check aggregate member capacity limit (30h)
         var existingAssignments = await _context.TaskAssignments
             .Where(a => a.WeeklyPlanId == plan.Id && a.UserId == user.Id)
             .ToListAsync();
@@ -60,9 +58,8 @@ public class AssignmentService : IAssignmentService
         var currentAssignedTotal = existingAssignments.Sum(a => a.AssignedHours);
 
         if (currentAssignedTotal + dto.AssignedHours > 30)
-            throw new BusinessException($"Member {user.Name} cannot exceed 30 hours per week. (Current: {currentAssignedTotal}h, Selected: {dto.AssignedHours}h)");
+            throw new BusinessException($"Member {user.Name} cannot exceed 30 hours per week.");
 
-        // 5. Check category allocation limit
         var categoryAllocation = allocations.FirstOrDefault(a => a.Category == backlogItem.Category);
         if (categoryAllocation == null) 
             throw new BusinessException($"No allocation found for category {backlogItem.Category}");
@@ -71,7 +68,6 @@ public class AssignmentService : IAssignmentService
             .Where(a => a.WeeklyPlanId == plan.Id)
             .ToListAsync();
 
-        // Need to join backlog items in memory to check categories for the category allocation limit
         var allBacklogItems = await _context.BacklogItems.ToListAsync();
         
         var categoryUsedHours = allPlanAssignments
@@ -80,15 +76,14 @@ public class AssignmentService : IAssignmentService
             .Sum(x => x.a.AssignedHours);
 
         if (categoryUsedHours + dto.AssignedHours > categoryAllocation.AllocatedHours)
-            throw new BusinessException($"Category '{backlogItem.Category}' allocation exceeded. (Current: {categoryUsedHours}h, Selected: {dto.AssignedHours}h, Max Allowed: {categoryAllocation.AllocatedHours}h). Please increase this category's percentage in the Weekly Plan setup.");
+            throw new BusinessException($"Category '{backlogItem.Category}' allocation exceeded.");
 
-        // 6. Create TaskAssignment
         var assignment = new TaskAssignment
         {
             Id = Guid.NewGuid(),
             BacklogItemId = backlogItem.Id,
             UserId = user.Id,
-            WeeklyPlanId = plan.Id,
+            WeeklyPlanId = plan.Id, // PK in Assignments container
             AssignedHours = dto.AssignedHours,
             Status = BacklogStatus.Planned,
             ProgressPercentage = 0,
@@ -108,7 +103,11 @@ public class AssignmentService : IAssignmentService
 
     public async Task<TaskAssignmentDto> UpdateProgressAsync(Guid id, UpdateProgressDto dto, Guid userId, string userRole)
     {
-        var assignment = await _context.TaskAssignments.FindAsync(id);
+        if (dto == null) throw new BusinessException("Progress data is required.");
+
+        // For Cosmos, point read works best if partitioned correctly. 
+        // Since we don't have WeeklyPlanId here, we search cross-partition (automatic in EF FIND).
+        var assignment = await _context.TaskAssignments.FirstOrDefaultAsync(a => a.Id == id);
         if (assignment == null) 
             throw new BusinessException("Assignment not found.");
 
@@ -141,7 +140,6 @@ public class AssignmentService : IAssignmentService
 
         await _context.SaveChangesAsync();
         
-        // Manual hydrate for DTO
         assignment.BacklogItem = backlogItem!;
         assignment.User = await _context.Users.FindAsync(assignment.UserId) ?? null!;
         
@@ -156,8 +154,7 @@ public class AssignmentService : IAssignmentService
 
         if (plan == null)
         {
-            var allPlans = await _context.WeeklyPlans.ToListAsync();
-            plan = allPlans.OrderByDescending(p => p.StartDate).FirstOrDefault();
+            plan = plans.OrderByDescending(p => p.StartDate).FirstOrDefault();
         }
 
         if (plan == null) return new DashboardSummaryDto();
@@ -168,18 +165,13 @@ public class AssignmentService : IAssignmentService
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid weeklyPlanId, DashboardFiltersDto filters)
     {
         var plan = await _context.WeeklyPlans.FindAsync(weeklyPlanId);
-        if (plan == null) throw new Exception("Plan not found");
+        if (plan == null) throw new BusinessException("Plan not found");
 
         var allocations = await _context.PlanAllocations.Where(a => a.WeeklyPlanId == weeklyPlanId).ToListAsync();
-
-        var assignments = await _context.TaskAssignments
-            .Where(a => a.WeeklyPlanId == weeklyPlanId)
-            .ToListAsync();
-
+        var assignments = await _context.TaskAssignments.Where(a => a.WeeklyPlanId == weeklyPlanId).ToListAsync();
         var users = await _context.Users.ToListAsync();
         var backlogItems = await _context.BacklogItems.ToListAsync();
 
-        // Enforce filters in memory
         var filteredAssignments = assignments.AsEnumerable();
         
         if (filters.MemberId.HasValue) 
@@ -197,7 +189,7 @@ public class AssignmentService : IAssignmentService
 
         var finalItems = assignmentItems.ToList();
 
-        var summary = new DashboardSummaryDto
+        return new DashboardSummaryDto
         {
             PlanSummary = new WeeklyPlanSummaryDto
             {
@@ -242,7 +234,5 @@ public class AssignmentService : IAssignmentService
                 Hours = x.a.AssignedHours
             }).ToList()
         };
-
-        return summary;
     }
 }

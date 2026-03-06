@@ -21,42 +21,38 @@ public class WeeklyPlanService : IWeeklyPlanService
 
     public async Task<WeeklyPlanDto> CreatePlanAsync(CreateWeeklyPlanDto dto)
     {
-        // 1. Handle overlapping plans (Strategy Re-initialization)
-        var overlaps = await _context.WeeklyPlans
+        if (dto == null) throw new BusinessException("Plan data is required.");
+
+        var allPlans = await _context.WeeklyPlans.ToListAsync();
+        var overlaps = allPlans
             .Where(p => p.StartDate <= dto.EndDate && p.EndDate >= dto.StartDate)
-            .ToListAsync();
+            .ToList();
 
         if (overlaps.Any())
         {
             if (overlaps.Any(p => p.IsFrozen))
-                throw new BusinessException("A frozen weekly plan already exists for this period. Frozen plans cannot be re-initialized.");
+                throw new BusinessException("A frozen weekly plan already exists for this period.");
 
-            // Cleanup non-frozen overlaps
             foreach (var oldPlan in overlaps)
             {
-                // Fetch assignments manually
                 var assignments = await _context.TaskAssignments
                     .Where(a => a.WeeklyPlanId == oldPlan.Id)
                     .ToListAsync();
 
-                // Reset Backlog Item statuses
                 var backlogItemIds = assignments.Select(a => a.BacklogItemId).ToList();
-                var backlogItems = await _context.BacklogItems
-                    .Where(bi => backlogItemIds.Contains(bi.Id))
-                    .ToListAsync();
+                var backlogItems = await _context.BacklogItems.ToListAsync();
+                var itemsToReset = backlogItems.Where(bi => backlogItemIds.Contains(bi.Id)).ToList();
                 
-                foreach (var item in backlogItems)
+                foreach (var item in itemsToReset)
                 {
                     item.Status = BacklogStatus.Backlog;
                 }
 
-                // Remove assignments manually
                 foreach (var assignment in assignments)
                 {
                     _context.TaskAssignments.Remove(assignment);
                 }
 
-                // Remove allocations manually
                 var oldAllocations = await _context.PlanAllocations
                     .Where(a => a.WeeklyPlanId == oldPlan.Id)
                     .ToListAsync();
@@ -71,11 +67,9 @@ public class WeeklyPlanService : IWeeklyPlanService
             await _context.SaveChangesAsync();
         }
 
-        // 2. Validate total percentage
         if (dto.ClientPercentage + dto.TechDebtPercentage + dto.RndPercentage != 100)
             throw new BusinessException("Allocation percentages must equal 100%");
 
-        // 3. Calculate capacity based on TEAM_MEMBER users
         var allUsers = await _context.Users.ToListAsync();
         var memberCount = allUsers.Count(u => u.Role == Role.TeamMember);
         var totalCapacity = memberCount * 30;
@@ -86,7 +80,6 @@ public class WeeklyPlanService : IWeeklyPlanService
         _context.WeeklyPlans.Add(plan);
         await _context.SaveChangesAsync();
 
-        // 4. Create allocations with decimal precision
         var allocations = new List<PlanAllocation>
         {
             new() { Id = Guid.NewGuid(), WeeklyPlanId = plan.Id, Category = Category.Client, AllocatedHours = totalCapacity * dto.ClientPercentage / 100.0m },
@@ -110,7 +103,7 @@ public class WeeklyPlanService : IWeeklyPlanService
     public async Task<WeeklyPlanDto> FreezePlanAsync(Guid id)
     {
         var plan = await _context.WeeklyPlans.FindAsync(id);
-        if (plan == null) throw new Exception("Plan not found");
+        if (plan == null) throw new BusinessException("Plan not found");
 
         plan.IsFrozen = true;
         await _context.SaveChangesAsync();

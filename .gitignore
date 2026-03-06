@@ -5,25 +5,30 @@
 *.userosscache
 *.sln.docstates
 *.suo
+
+## Build Artifacts
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+**/TestResults/
+publish/
+
+## .NET Binaries & Artifacts
 *.dll
 *.pdb
 *.exe
+*.cache
+*.log
+*.tmp
+*.db
+*.db-shm
+*.db-wal
 
 ## OS Files
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-## .NET
-**/bin/
-**/obj/
-**/TestResults/
-publish/
-*.db
-*.db-shm
-*.db-wal
-*.log
-*.tmp
 
 ## Deployment Artifacts
 *.zip
@@ -32,8 +37,8 @@ publish/
 
 ## User-specific config
 appsettings.Local.json
-*.user
 secrets.json
+*.user
 
 ## Node / Frontend (Angular)
 **/node_modules/
@@ -45,6 +50,7 @@ yarn-error.log*
 .pnpm-debug.log*
 .eslintcache
 .stylelintcache
+src/assets/docs/
 
 ## Coverage / Testing
 **/coverage/
@@ -59,3 +65,4 @@ build_log*.txt
 run_error*.txt
 tmp_diagnostic*
 build_log_*.txt
+angular_build_errors.txt

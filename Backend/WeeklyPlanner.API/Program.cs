@@ -104,8 +104,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             )
         )
     };
-
-
 });
 
 // --------------------
@@ -114,34 +112,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 var app = builder.Build();
 
 // --------------------
-// Middleware Pipeline
+// Middleware Pipeline (ORDER IS CRITICAL)
 // --------------------
+
+// 1. Global Exception Handling
 app.UseMiddleware<ExceptionMiddleware>();
 
-// Enable Swagger globally (including Production)
+// 2. Swagger (Enabled for Production Audit)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Weekly Planner API V1");
-    c.RoutePrefix = "swagger"; // Standard access at /swagger
+    c.RoutePrefix = "swagger"; 
 });
 
-// Root Health Check
-app.MapGet("/", () => "Weekly Planner API running on Azure");
+// 3. Health Check & Routing
+app.UseRouting();
 
+// 4. CORS
 app.UseCors("AllowAngular");
 
-// Https is handled by Azure App Service SSL termination usually, 
-// but we can uncomment if required for strict HSTS.
-// app.UseHttpsRedirection(); 
-
+// 5. Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --------------------
-// Routes
-// --------------------
+// 6. Controllers
 app.MapControllers();
+
+// Root Health Check
+app.MapGet("/", () => "Weekly Planner API running on Azure");
 
 // --------------------
 // Seed Data & Run
