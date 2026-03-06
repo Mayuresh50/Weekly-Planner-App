@@ -213,4 +213,4 @@ Tests cover:
 - Project Repository: [Mayuresh50/Weekly-Planner-App](https://github.com/Mayuresh50/Weekly-Planner-App)
 
 ---
-*Developed for ThinkBridge Enterprise Solutions - March 2026*
+*Developed for ThinkBridge (ThinkSchool) - March 2026*
