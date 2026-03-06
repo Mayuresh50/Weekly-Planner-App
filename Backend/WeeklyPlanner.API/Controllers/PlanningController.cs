@@ -36,4 +36,10 @@ public class PlanningController : ControllerBase
     {
         return Ok(await _planningService.GetCurrentPlanAsync());
     }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<WeeklyPlanDto>>> GetAll()
+    {
+        return Ok(await _planningService.GetAllPlansAsync());
+    }
 }

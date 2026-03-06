@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IWeeklyPlanService, WeeklyPlanService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IDevService, DevService>();
 
         return services;
     }

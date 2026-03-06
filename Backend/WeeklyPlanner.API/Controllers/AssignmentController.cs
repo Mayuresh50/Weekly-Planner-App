@@ -19,6 +19,7 @@ public class AssignmentController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "TeamLead")]
     public async Task<ActionResult<TaskAssignmentDto>> Assign([FromBody] CreateAssignmentDto dto)
     {
         return Ok(await _assignmentService.AssignTaskAsync(dto));
@@ -34,17 +35,5 @@ public class AssignmentController : ControllerBase
         var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
         
         return Ok(await _assignmentService.UpdateProgressAsync(id, dto, userId, role));
-    }
-
-    [HttpGet("summary/active")]
-    public async Task<ActionResult<DashboardSummaryDto>> GetActiveSummary([FromQuery] DashboardFiltersDto filters)
-    {
-        return Ok(await _assignmentService.GetActiveDashboardSummaryAsync(filters));
-    }
-
-    [HttpGet("{weeklyPlanId}/summary")]
-    public async Task<ActionResult<DashboardSummaryDto>> GetSummary(Guid weeklyPlanId, [FromQuery] DashboardFiltersDto filters)
-    {
-        return Ok(await _assignmentService.GetDashboardSummaryAsync(weeklyPlanId, filters));
     }
 }
