@@ -8,4 +8,5 @@ public interface IAssignmentService
     Task<TaskAssignmentDto> UpdateProgressAsync(Guid id, UpdateProgressDto dto, Guid userId, string userRole);
     Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid weeklyPlanId, DashboardFiltersDto filters);
     Task<DashboardSummaryDto> GetActiveDashboardSummaryAsync(DashboardFiltersDto filters);
+    Task<IEnumerable<TaskAssignmentDto>> GetMyAssignmentsAsync(Guid userId);
 }

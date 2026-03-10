@@ -37,11 +37,27 @@ export const routes: Routes = [
         path: 'assignment', 
         loadComponent: () => import('./features/assignment/assignment-manager/assignment-manager.component').then(m => m.AssignmentManagerComponent) 
       },
+      { 
+        path: 'my-tasks', 
+        loadComponent: () => import('./features/assignment/assignment-manager/assignment-manager.component').then(m => m.AssignmentManagerComponent) 
+      },
+      { 
+        path: 'update-progress', 
+        loadComponent: () => import('./features/assignment/assignment-manager/assignment-manager.component').then(m => m.AssignmentManagerComponent) 
+      },
       {
         path: 'team',
         loadComponent: () => import('./features/team/team-list/team-list.component').then(m => m.TeamListComponent),
         canActivate: [authGuard],
         data: { role: Role.TeamLead }
+      },
+      {
+        path: 'planning/current',
+        loadComponent: () => import('./features/assignment/assignment-manager/assignment-manager.component').then(m => m.AssignmentManagerComponent)
+      },
+      {
+        path: 'planning/history',
+        loadComponent: () => import('./features/dashboard/dashboard-home/dashboard-home.component').then(m => m.DashboardHomeComponent)
       },
       {
         path: 'weeks/history',

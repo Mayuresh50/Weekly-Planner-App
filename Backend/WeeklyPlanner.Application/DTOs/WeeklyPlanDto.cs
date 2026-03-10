@@ -12,6 +12,7 @@ public class WeeklyPlanDto
     public decimal TechDebtPercentage { get; set; }
     public decimal RndPercentage { get; set; }
     public decimal TotalAvailableHours { get; set; }
+    public decimal TotalPlannedHours { get; set; }
     public List<PlanAllocationDto> Allocations { get; set; } = new();
 }
 
