@@ -123,7 +123,12 @@ public class WeeklyPlanService : IWeeklyPlanService
             .Where(a => a.WeeklyPlanId == plan.Id)
             .ToListAsync();
         
+        var assignments = await _context.TaskAssignments
+            .Where(a => a.WeeklyPlanId == plan.Id)
+            .ToListAsync();
+        
         dto.Allocations = _mapper.Map<List<PlanAllocationDto>>(allocations);
+        dto.TotalPlannedHours = assignments.Sum(a => a.AssignedHours);
         
         return dto;
     }
@@ -134,6 +139,16 @@ public class WeeklyPlanService : IWeeklyPlanService
             .OrderByDescending(p => p.StartDate)
             .ToListAsync();
             
-        return _mapper.Map<List<WeeklyPlanDto>>(plans);
+        var dtos = _mapper.Map<List<WeeklyPlanDto>>(plans);
+        var allAssignments = await _context.TaskAssignments.ToListAsync();
+
+        foreach (var dto in dtos)
+        {
+            dto.TotalPlannedHours = allAssignments
+                .Where(a => a.WeeklyPlanId == dto.Id)
+                .Sum(a => a.AssignedHours);
+        }
+
+        return dtos;
     }
 }

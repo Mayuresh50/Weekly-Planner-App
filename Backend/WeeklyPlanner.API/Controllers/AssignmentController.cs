@@ -18,6 +18,16 @@ public class AssignmentController : ControllerBase
         _assignmentService = assignmentService;
     }
 
+    [HttpGet("my")]
+    public async Task<ActionResult<IEnumerable<TaskAssignmentDto>>> GetMy()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdStr);
+        return Ok(await _assignmentService.GetMyAssignmentsAsync(userId));
+    }
+
     [HttpPost]
     [Authorize(Roles = "TeamLead")]
     public async Task<ActionResult<TaskAssignmentDto>> Assign([FromBody] CreateAssignmentDto dto)

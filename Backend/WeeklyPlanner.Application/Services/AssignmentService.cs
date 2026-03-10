@@ -235,4 +235,25 @@ public class AssignmentService : IAssignmentService
             }).ToList()
         };
     }
+
+    public async Task<IEnumerable<TaskAssignmentDto>> GetMyAssignmentsAsync(Guid userId)
+    {
+        var assignments = await _context.TaskAssignments.ToListAsync();
+        var myAssignments = assignments.Where(a => a.UserId == userId).ToList();
+
+        var backlogItems = await _context.BacklogItems.ToListAsync();
+        var users = await _context.Users.ToListAsync();
+
+        var result = myAssignments
+            .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+            .Join(users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u })
+            .Select(x => {
+                var dto = _mapper.Map<TaskAssignmentDto>(x.a);
+                dto.BacklogItemTitle = x.bi.Title;
+                dto.UserName = x.u.Name;
+                return dto;
+            });
+
+        return result;
+    }
 }
