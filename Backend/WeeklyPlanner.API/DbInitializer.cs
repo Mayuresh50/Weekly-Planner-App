@@ -15,8 +15,8 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-        // Ensure database exists
-        context.Database.EnsureCreated();
+        // Apply migrations
+        await context.Database.MigrateAsync();
 
         var userCount = await context.Users.CountAsync();
         if (userCount == 0)

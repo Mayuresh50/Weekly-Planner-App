@@ -22,22 +22,11 @@ public class DevService : IDevService
 
     public async Task ResetDataAsync()
     {
-        var assignments = await _context.TaskAssignments.ToListAsync();
-        _context.TaskAssignments.RemoveRange(assignments);
-
-        var allocations = await _context.PlanAllocations.ToListAsync();
-        _context.PlanAllocations.RemoveRange(allocations);
-
-        var plans = await _context.WeeklyPlans.ToListAsync();
-        _context.WeeklyPlans.RemoveRange(plans);
-
-        var items = await _context.BacklogItems.ToListAsync();
-        _context.BacklogItems.RemoveRange(items);
-
-        var users = await _context.Users.ToListAsync();
-        _context.Users.RemoveRange(users);
-
-        await _context.SaveChangesAsync();
+        await _context.TaskAssignments.ExecuteDeleteAsync();
+        await _context.PlanAllocations.ExecuteDeleteAsync();
+        await _context.WeeklyPlans.ExecuteDeleteAsync();
+        await _context.BacklogItems.ExecuteDeleteAsync();
+        await _context.Users.ExecuteDeleteAsync();
     }
 
     public async Task SeedDataAsync()
@@ -142,7 +131,7 @@ public class DevService : IDevService
         var plans = _mapper.Map<List<WeeklyPlan>>(data.WeeklyPlans);
         _context.WeeklyPlans.AddRange(plans);
 
-        // Allocations are child of plan in some views, but separate container in Cosmos. 
+        // Allocations are separate entities in PostgreSQL.
         // We need to re-generate or include in export.
         // Let's assume export includes them in PlanDto and we re-separate.
         foreach(var planDto in data.WeeklyPlans)

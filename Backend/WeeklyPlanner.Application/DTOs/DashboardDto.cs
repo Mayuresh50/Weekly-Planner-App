@@ -13,6 +13,7 @@ public class TaskAssignmentDto
     public decimal AssignedHours { get; set; }
     public int ProgressPercentage { get; set; }
     public BacklogStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CreateAssignmentDto

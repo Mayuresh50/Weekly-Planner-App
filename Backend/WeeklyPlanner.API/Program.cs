@@ -27,20 +27,26 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 
 // --------------------
-// CORS (Angular)
+// CORS (Vercel Frontend)
 // --------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
             "http://localhost:4200",
-            "https://calm-ground-05bf86c00.1.azurestaticapps.net"
+            "https://weekly-planner-tracker.vercel.app"
         )
         .AllowAnyHeader()
         .AllowAnyMethod();
     });
 });
+
+// --------------------
+// Render Port Configuration
+// --------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+builder.WebHost.UseUrls($"http://*:{port}");
 
 // --------------------
 // Swagger + JWT Support
@@ -130,7 +136,7 @@ app.UseSwaggerUI(c =>
 app.UseRouting();
 
 // 4. CORS
-app.UseCors("AllowAngular");
+app.UseCors("AllowFrontend");
 
 // 5. Authentication & Authorization
 app.UseAuthentication();
@@ -140,7 +146,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Root Health Check
-app.MapGet("/", () => "Weekly Planner API running on Azure");
+app.MapGet("/", () => "Weekly Planner API running on PostgreSQL (Render)");
 
 // --------------------
 // Seed Data & Run

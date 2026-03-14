@@ -23,10 +23,9 @@ public class WeeklyPlanService : IWeeklyPlanService
     {
         if (dto == null) throw new BusinessException("Plan data is required.");
 
-        var allPlans = await _context.WeeklyPlans.ToListAsync();
-        var overlaps = allPlans
+        var overlaps = await _context.WeeklyPlans
             .Where(p => p.StartDate <= dto.EndDate && p.EndDate >= dto.StartDate)
-            .ToList();
+            .ToListAsync();
 
         if (overlaps.Any())
         {
@@ -113,8 +112,8 @@ public class WeeklyPlanService : IWeeklyPlanService
     public async Task<WeeklyPlanDto?> GetCurrentPlanAsync()
     {
         var now = DateTime.UtcNow;
-        var plans = await _context.WeeklyPlans.ToListAsync();
-        var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
+        var plan = await _context.WeeklyPlans
+            .FirstOrDefaultAsync(p => p.StartDate <= now && p.EndDate >= now);
             
         if (plan == null) return null;
 
@@ -140,13 +139,12 @@ public class WeeklyPlanService : IWeeklyPlanService
             .ToListAsync();
             
         var dtos = _mapper.Map<List<WeeklyPlanDto>>(plans);
-        var allAssignments = await _context.TaskAssignments.ToListAsync();
 
         foreach (var dto in dtos)
         {
-            dto.TotalPlannedHours = allAssignments
+            dto.TotalPlannedHours = await _context.TaskAssignments
                 .Where(a => a.WeeklyPlanId == dto.Id)
-                .Sum(a => a.AssignedHours);
+                .SumAsync(a => a.AssignedHours);
         }
 
         return dtos;

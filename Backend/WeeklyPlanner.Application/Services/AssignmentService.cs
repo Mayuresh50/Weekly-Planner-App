@@ -64,16 +64,11 @@ public class AssignmentService : IAssignmentService
         if (categoryAllocation == null) 
             throw new BusinessException($"No allocation found for category {backlogItem.Category}");
 
-        var allPlanAssignments = await _context.TaskAssignments
+        var categoryUsedHours = await _context.TaskAssignments
             .Where(a => a.WeeklyPlanId == plan.Id)
-            .ToListAsync();
-
-        var allBacklogItems = await _context.BacklogItems.ToListAsync();
-        
-        var categoryUsedHours = allPlanAssignments
-            .Join(allBacklogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
-            .Where(x => x.bi.Category == backlogItem.Category)
-            .Sum(x => x.a.AssignedHours);
+            .Join(_context.BacklogItems.Where(bi => bi.Category == backlogItem.Category), 
+                a => a.BacklogItemId, bi => bi.Id, (a, bi) => a.AssignedHours)
+            .SumAsync();
 
         if (categoryUsedHours + dto.AssignedHours > categoryAllocation.AllocatedHours)
             throw new BusinessException($"Category '{backlogItem.Category}' allocation exceeded.");
@@ -83,7 +78,7 @@ public class AssignmentService : IAssignmentService
             Id = Guid.NewGuid(),
             BacklogItemId = backlogItem.Id,
             UserId = user.Id,
-            WeeklyPlanId = plan.Id, // PK in Assignments container
+            WeeklyPlanId = plan.Id,
             AssignedHours = dto.AssignedHours,
             Status = BacklogStatus.Planned,
             ProgressPercentage = 0,
@@ -105,8 +100,6 @@ public class AssignmentService : IAssignmentService
     {
         if (dto == null) throw new BusinessException("Progress data is required.");
 
-        // For Cosmos, point read works best if partitioned correctly. 
-        // Since we don't have WeeklyPlanId here, we search cross-partition (automatic in EF FIND).
         var assignment = await _context.TaskAssignments.FirstOrDefaultAsync(a => a.Id == id);
         if (assignment == null) 
             throw new BusinessException("Assignment not found.");
@@ -149,12 +142,15 @@ public class AssignmentService : IAssignmentService
     public async Task<DashboardSummaryDto> GetActiveDashboardSummaryAsync(DashboardFiltersDto filters)
     {
         var now = DateTime.UtcNow;
-        var plans = await _context.WeeklyPlans.ToListAsync();
-        var plan = plans.FirstOrDefault(p => p.StartDate <= now && p.EndDate >= now);
+        var plan = await _context.WeeklyPlans
+            .Where(p => p.StartDate <= now && p.EndDate >= now)
+            .FirstOrDefaultAsync();
 
         if (plan == null)
         {
-            plan = plans.OrderByDescending(p => p.StartDate).FirstOrDefault();
+            plan = await _context.WeeklyPlans
+                .OrderByDescending(p => p.StartDate)
+                .FirstOrDefaultAsync();
         }
 
         if (plan == null) return new DashboardSummaryDto();
@@ -168,26 +164,29 @@ public class AssignmentService : IAssignmentService
         if (plan == null) throw new BusinessException("Plan not found");
 
         var allocations = await _context.PlanAllocations.Where(a => a.WeeklyPlanId == weeklyPlanId).ToListAsync();
-        var assignments = await _context.TaskAssignments.Where(a => a.WeeklyPlanId == weeklyPlanId).ToListAsync();
-        var users = await _context.Users.ToListAsync();
-        var backlogItems = await _context.BacklogItems.ToListAsync();
-
-        var filteredAssignments = assignments.AsEnumerable();
+        var query = _context.TaskAssignments.Where(a => a.WeeklyPlanId == weeklyPlanId);
         
         if (filters.MemberId.HasValue) 
-            filteredAssignments = filteredAssignments.Where(a => a.UserId == filters.MemberId.Value);
+            query = query.Where(a => a.UserId == filters.MemberId.Value);
 
-        var assignmentItems = filteredAssignments
-            .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
-            .Join(users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u });
-
-        if (filters.Category.HasValue)
-            assignmentItems = assignmentItems.Where(x => x.bi.Category == filters.Category.Value);
-        
         if (filters.Status.HasValue)
-            assignmentItems = assignmentItems.Where(x => x.a.Status == filters.Status.Value);
+            query = query.Where(a => a.Status == filters.Status.Value);
 
-        var finalItems = assignmentItems.ToList();
+        var finalItems = await query
+            .Join(_context.BacklogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+            .Join(_context.Users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u })
+            .Where(x => !filters.Category.HasValue || x.bi.Category == filters.Category.Value)
+            .Select(x => new {
+                x.a.Id,
+                x.bi.Title,
+                MemberName = x.u.Name,
+                x.bi.Category,
+                x.a.Status,
+                Progress = x.a.ProgressPercentage,
+                Hours = x.a.AssignedHours,
+                x.a.UserId
+            })
+            .ToListAsync();
 
         return new DashboardSummaryDto
         {
@@ -197,14 +196,15 @@ public class AssignmentService : IAssignmentService
                 EndDate = plan.EndDate,
                 IsFrozen = plan.IsFrozen,
                 TotalAvailable = plan.TotalAvailableHours,
-                TotalPlanned = assignments.Sum(a => a.AssignedHours)
+                TotalPlanned = await _context.TaskAssignments
+                    .Where(a => a.WeeklyPlanId == weeklyPlanId)
+                    .SumAsync(a => a.AssignedHours)
             },
             CategoryUtilization = allocations.Select(alloc => 
             {
-                var used = assignments
-                    .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
-                    .Where(x => x.bi.Category == alloc.Category)
-                    .Sum(x => x.a.AssignedHours);
+                var used = finalItems
+                    .Where(x => x.Category == alloc.Category)
+                    .Sum(x => x.Hours);
                 
                 return new CategoryUtilizationDto
                 {
@@ -215,44 +215,47 @@ public class AssignmentService : IAssignmentService
                 };
             }).ToList(),
             MemberProgress = finalItems
-                .GroupBy(x => new { x.a.UserId, x.u.Name })
+                .GroupBy(x => new { x.UserId, x.MemberName })
                 .Select(g => new MemberProgressDto
                 {
-                    Name = g.Key.Name,
+                    Name = g.Key.MemberName,
                     Tasks = g.Count(),
-                    Completed = g.Count(x => x.a.Status == BacklogStatus.Completed),
-                    TotalHours = g.Sum(x => x.a.AssignedHours)
+                    Completed = g.Count(x => x.Status == BacklogStatus.Completed),
+                    TotalHours = g.Sum(x => x.Hours)
                 }).ToList(),
             TaskLevelProgress = finalItems.Select(x => new TaskLevelProgressDto
             {
-                Id = x.a.Id,
-                Title = x.bi.Title,
-                MemberName = x.u.Name,
-                Category = x.bi.Category,
-                Status = x.a.Status,
-                Progress = x.a.ProgressPercentage,
-                Hours = x.a.AssignedHours
+                Id = x.Id,
+                Title = x.Title,
+                MemberName = x.MemberName,
+                Category = x.Category,
+                Status = x.Status,
+                Progress = x.Progress,
+                Hours = x.Hours
             }).ToList()
         };
     }
 
     public async Task<IEnumerable<TaskAssignmentDto>> GetMyAssignmentsAsync(Guid userId)
     {
-        var assignments = await _context.TaskAssignments.ToListAsync();
-        var myAssignments = assignments.Where(a => a.UserId == userId).ToList();
-
-        var backlogItems = await _context.BacklogItems.ToListAsync();
-        var users = await _context.Users.ToListAsync();
-
-        var result = myAssignments
-            .Join(backlogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
-            .Join(users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u })
-            .Select(x => {
-                var dto = _mapper.Map<TaskAssignmentDto>(x.a);
-                dto.BacklogItemTitle = x.bi.Title;
-                dto.UserName = x.u.Name;
-                return dto;
-            });
+        var result = await _context.TaskAssignments
+            .Where(a => a.UserId == userId)
+            .Join(_context.BacklogItems, a => a.BacklogItemId, bi => bi.Id, (a, bi) => new { a, bi })
+            .Join(_context.Users, x => x.a.UserId, u => u.Id, (x, u) => new { x.a, x.bi, u })
+            .Select(x => new TaskAssignmentDto
+            {
+                Id = x.a.Id,
+                BacklogItemId = x.a.BacklogItemId,
+                WeeklyPlanId = x.a.WeeklyPlanId,
+                UserId = x.a.UserId,
+                AssignedHours = x.a.AssignedHours,
+                Status = x.a.Status,
+                ProgressPercentage = x.a.ProgressPercentage,
+                CreatedAt = x.a.CreatedAt,
+                BacklogItemTitle = x.bi.Title,
+                UserName = x.u.Name
+            })
+            .ToListAsync();
 
         return result;
     }

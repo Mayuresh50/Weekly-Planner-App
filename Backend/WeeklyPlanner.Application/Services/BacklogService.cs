@@ -27,7 +27,9 @@ public class BacklogService : IBacklogService
 
     public async Task<IEnumerable<BacklogItemDto>> GetAllItemsAsync()
     {
-        var items = await _context.BacklogItems.ToListAsync();
+        var items = await _context.BacklogItems
+            .OrderByDescending(b => b.CreatedAt)
+            .ToListAsync();
         return _mapper.Map<IEnumerable<BacklogItemDto>>(items);
     }
 
